@@ -1,0 +1,13 @@
+torch
+torchvision
+pytorch_lightning
+numpy
+pandas
+rasterio
+gdown
+shapely
+geopandas
+einops
+timm
+scikit-learn
+scikit-image
