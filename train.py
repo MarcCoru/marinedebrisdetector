@@ -174,7 +174,7 @@ def main(args):
                                              cache_to_npy=True)
 
     train_loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.workers)
-    val_loader = DataLoader(valid_dataset, batch_size=args.batch_size, num_workers=args.workers, shuffle=False)
+    val_loader = DataLoader(valid_dataset, batch_size=args.batch_size, num_workers=args.workers, shuffle=False, drop_last=True)
 
     wandb_logger = WandbLogger(project="floatingobjects", log_model=True)
     wandb_logger.watch(model)
