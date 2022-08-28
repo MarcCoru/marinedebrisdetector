@@ -14,6 +14,9 @@ import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
 from sklearn.metrics import roc_auc_score, precision_recall_fscore_support, cohen_kappa_score, confusion_matrix, jaccard_score
 from loss import get_loss
+from visualization import fdi, ndvi
+from callbacks import PlotPredictionsCallback
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data-path', type=str, default="/data")
@@ -47,7 +50,6 @@ def parse_args():
 
     return args
 
-
 def calculate_metrics(targets, scores, optimal_threshold):
     predictions = scores > optimal_threshold
 
@@ -55,11 +57,7 @@ def calculate_metrics(targets, scores, optimal_threshold):
     p, r, f, s = precision_recall_fscore_support(y_true=targets,
                                                  y_pred=predictions, zero_division=0, average="binary")
     kappa = cohen_kappa_score(targets, predictions)
-    cm = confusion_matrix(targets, predictions)
-    tn = cm[0, 0]
-    tp = cm[1, 1]
-    fn = cm[0, 1]
-    fp = cm[1, 0]
+
     jaccard = jaccard_score(targets, predictions)
 
     summary = dict(
@@ -68,41 +66,11 @@ def calculate_metrics(targets, scores, optimal_threshold):
         recall=r,
         fscore=f,
         kappa=kappa,
-        tn=tn,
-        tp=tp,
-        fn=fn,
-        fp=fp,
         jaccard=jaccard,
         threshold=optimal_threshold
     )
 
     return summary
-
-import matplotlib.pyplot as plt
-from skimage.exposure import equalize_hist
-import pandas as pd
-class PlotPredictionsCallback(pl.Callback):
-    def __init__(self, logger):
-        super().__init__()
-        self.logger = logger
-
-    def on_validation_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, unused=0):
-        self.last_outputs = outputs
-        self.last_batch = batch
-
-    def on_validation_epoch_end(self, trainer, pl_module):
-        images, masks, id = self.last_batch
-        y_scores = self.last_outputs["y_scores"]
-
-        predictions = [wandb.Image(i) for i in y_scores.squeeze(1).detach().cpu().numpy()]
-
-        rgb = equalize_hist(images[:, np.array([3, 2, 1])].detach().cpu().numpy())
-        rgb_images = [wandb.Image(i) for i in rgb.transpose(0,2,3,1)]
-
-        df = pd.DataFrame([predictions, rgb_images], index=["predictions","images"]).T
-        self.logger.log_table(key="predictions", dataframe=df, step=trainer.global_step)
-
-        print()
 
 class LitModel(pl.LightningModule):
     def __init__(self, learning_rate, weight_decay):
@@ -147,6 +115,8 @@ class LitModel(pl.LightningModule):
         ix = np.argmax(gmeans)
         optimal_threshold = thresholds[ix]
 
+        wandb.log({"roc_curve": wandb.plot.roc_curve(y_true, np.stack([y_scores, 1 - y_scores]).T)})
+
         metrics = calculate_metrics(y_true, y_scores, optimal_threshold)
         self.log("val_loss", loss.mean())
         self.log("validation", {k:torch.tensor(v) for k,v in metrics.items()})
@@ -163,6 +133,7 @@ class LitModel(pl.LightningModule):
 def main(args):
 
     model = LitModel(learning_rate=args.learning_rate, weight_decay=args.weight_decay)
+    model = model.load_from_checkpoint("/home/marc/projects/marinedetector/floatingobjects/hs5rnyqw/checkpoints/epoch=323-step=169776.ckpt")
 
     dataset = FloatingSeaObjectDataset(args.data_path, fold="train",
                                        transform=get_transform("train", intensity=args.augmentation_intensity,
@@ -178,8 +149,10 @@ def main(args):
 
     wandb_logger = WandbLogger(project="floatingobjects", log_model=True)
     wandb_logger.watch(model)
+
+    plot_indices = np.random.randint(len(valid_dataset), size=64)
     trainer = pl.Trainer(accelerator="gpu", logger=wandb_logger,
-                         callbacks=[PlotPredictionsCallback(logger=wandb_logger)],
+                         callbacks=[PlotPredictionsCallback(logger=wandb_logger, dataset=valid_dataset, indices=plot_indices)],
                          fast_dev_run=False)
     trainer.fit(model, train_loader, val_loader)
 
