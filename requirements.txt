@@ -11,3 +11,4 @@ einops
 timm
 scikit-learn
 scikit-image
+matplotlib

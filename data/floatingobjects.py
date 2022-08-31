@@ -75,7 +75,6 @@ def split_line_gdf_into_segments(lines):
         line_segments += segments(geometry)
     return gpd.GeoDataFrame(geometry=line_segments)
 
-
 class FloatingSeaObjectRegionDataset(torch.utils.data.Dataset):
     def __init__(self, root, region, output_size=64,
                  transform=None, hard_negative_mining=True,
