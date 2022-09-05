@@ -15,8 +15,14 @@ bands = ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B9", "B11", "B1
 
 class DurbanDataset(torch.utils.data.Dataset):
     def __init__(self, root, output_size=64,
-                 transform=None):
-        self.shapefile = os.path.join(root, "durban_20190424_debris.shp")
+                 transform=None, objects="debris"):
+        if objects == "debris":
+            self.shapefile = os.path.join(root, "durban_20190424_debris.shp")
+        elif objects == "ships":
+            self.shapefile = os.path.join(root, "durban_20190424_ships.shp")
+        else:
+            raise ValueError(f"specified objects {objects} not valid. either `debris` or ships")
+
         self.imagefile = os.path.join(root, "durban_20190424.tif")
         self.polygons = gpd.read_file(self.shapefile)
         self.transform = transform
