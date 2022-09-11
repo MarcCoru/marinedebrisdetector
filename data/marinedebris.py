@@ -16,12 +16,13 @@ REGIONS = [
 
 class MarineDebrisRegionDataset(Dataset):
 
-    def __init__(self, root, region, imagesize=1280, shuffle=False):
+    def __init__(self, root, region, imagesize=1280, shuffle=False, transform=None):
         self.points = gpd.read_file(os.path.join(root, region + ".shp"))
         if shuffle:
             self.points = self.points.sample(frac=1)
         self.tifffile = os.path.join(root, region + ".tif")
         self.imagesize = imagesize
+        self.data_transform = transform
 
         with rio.open(self.tifffile) as src:
             self.crs = src.crs
@@ -54,7 +55,10 @@ class MarineDebrisRegionDataset(Dataset):
             if image.shape[0] == 13: # L1C data <- drop B10 band (index )
                 image = image[np.array([0,1,2,3,4,5,6,7,8,9,11,12])]
 
-        image = (image * 1e-4).astype(rio.float32)
+        image = torch.from_numpy((image * 1e-4).astype(rio.float32))
+
+        if self.data_transform is not None:
+            image = self.data_transform(image.unsqueeze(0)).squeeze()
 
         return image, point.type
 
