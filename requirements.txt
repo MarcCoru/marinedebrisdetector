@@ -12,3 +12,5 @@ timm
 scikit-learn
 scikit-image
 matplotlib
+wandb
+segmentation-models-pytorch

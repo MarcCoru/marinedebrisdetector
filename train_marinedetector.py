@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from skimage.exposure import equalize_hist
 import numpy as np
 import torch
+from datetime import datetime
 
 import pytorch_lightning as pl
 import torch.nn as nn
@@ -13,10 +14,11 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.callbacks import Callback
 from transforms import augment
 from pytorch_lightning.loggers import WandbLogger
+from model.cbamresnet import ResNet50
+from model.TinyCBAM import TinyCBAM
 
-from model import get_model
 class ResNetClassifier(pl.LightningModule):
-    def __init__(self):
+    def __init__(self, return_attention=False):
         super().__init__()
 
         if False:
@@ -32,6 +34,10 @@ class ResNetClassifier(pl.LightningModule):
 
             self.model.features[0][0] = newconv
             self.model.head = nn.Linear(in_features=768, out_features=1, bias=True)
+        elif False:
+            self.model = ResNet50(use_cbam=True, image_depth=12, num_classes=1)
+        elif True:
+            self.model = TinyCBAM(image_depth=12, num_classes=1, return_attention=return_attention)
         else:
             self.model = models.resnet18()
             self.model.conv1 = nn.Conv2d(12, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
@@ -82,24 +88,32 @@ class ResNetClassifier(pl.LightningModule):
 
 def main():
 
-    ds = MarineDebrisDataset(root="/ssd/marinedebris/marinedebris_refined", fold="train", shuffle=True,
+    ds = MarineDebrisDataset(root="/data/marinedebris/marinedebris_refined", fold="train", shuffle=True,
                              imagesize=640, transform=augment)
 
-    val_ds = MarineDebrisDataset(root="/ssd/marinedebris/marinedebris_refined", fold="val", shuffle=True,
+    val_ds = MarineDebrisDataset(root="/data/marinedebris/marinedebris_refined", fold="val", shuffle=True,
                              imagesize=640, transform=augment)
 
-    checkpoint_callback = ModelCheckpoint(dirpath='/tmp/checkpoints', save_last=True)
+    ts = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+    run_name = f"TinyCBAM_{ts}"
+    logger = WandbLogger(project="marinedebris", name=run_name, log_model=True, save_code=True)
+
+    checkpointer = ModelCheckpoint(
+        dirpath=f"checkpoints/{run_name}",
+        filename="{epoch}-{val_accuracy:.2f}",
+        monitor="val_accuracy",
+        mode="max",
+        save_last=True,
+    )
+
 
 
     model = ResNetClassifier()
-    #model = ResNetClassifier.load_from_checkpoint("/tmp/checkpoints/last-v2.ckpt")
     train_loader = torch.utils.data.DataLoader(ds, batch_size=128, num_workers=16, drop_last=True)
     val_loader = torch.utils.data.DataLoader(val_ds, batch_size=128, num_workers=16, drop_last=True)
 
-    wandb_logger = WandbLogger(project="marinedebris", log_model=True)
-    wandb_logger.watch(model)
 
-    trainer = pl.Trainer(max_epochs=1000, accelerator="gpu", callbacks=[checkpoint_callback], logger=wandb_logger)
+    trainer = pl.Trainer(max_epochs=1000, accelerator="gpu", callbacks=[checkpointer], logger=logger)
     trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
 
 
