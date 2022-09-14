@@ -230,7 +230,8 @@ class Noise(nn.Module):
 
 import torchvision.transforms as T
 
-augment = torch.nn.Sequential(
+def get_train_transform(crop_size=64):
+    return torch.nn.Sequential(
             #RandomApply(
             #    T.ColorJitter(0.8, 0.8, 0.8, 0.2),
             #    p = 0.3
@@ -238,7 +239,7 @@ augment = torch.nn.Sequential(
             #T.RandomGrayscale(p=0.2),
             RandomRot90(),
             #T.RandomRotation(90),
-            T.RandomResizedCrop(64, interpolation=T.InterpolationMode.BILINEAR),
+            T.RandomResizedCrop(crop_size, interpolation=T.InterpolationMode.BILINEAR),
             T.RandomHorizontalFlip(),
             RandomApply(T.GaussianBlur((3, 3), (1.0, 2.0)),p = 0.2),
             RandomApply(PixelNoise(std_noise=0.25),p = 0.2),

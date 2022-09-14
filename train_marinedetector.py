@@ -12,10 +12,13 @@ from torchvision import models
 from pytorch_lightning.callbacks import ModelCheckpoint
 
 from pytorch_lightning.callbacks import Callback
-from transforms import augment
+from transforms import get_train_transform
 from pytorch_lightning.loggers import WandbLogger
 from model.cbamresnet import ResNet50
 from model.TinyCBAM import TinyCBAM
+from model.justCBAM import JustCBAM
+from torchvision.models.swin_transformer import SwinTransformer
+from torch import nn
 
 class ResNetClassifier(pl.LightningModule):
     def __init__(self, return_attention=False):
@@ -36,8 +39,21 @@ class ResNetClassifier(pl.LightningModule):
             self.model.head = nn.Linear(in_features=768, out_features=1, bias=True)
         elif False:
             self.model = ResNet50(use_cbam=True, image_depth=12, num_classes=1)
-        elif True:
+        elif False:
             self.model = TinyCBAM(image_depth=12, num_classes=1, return_attention=return_attention)
+        elif True:
+            self.model = SwinTransformer(
+                patch_size=[1, 1],
+                embed_dim=96,
+                depths=[2],
+                num_heads=[3],
+                window_size=[7, 7],
+                stochastic_depth_prob=0.2)
+            self.model.features[0][0] = nn.Conv2d(12, 96, kernel_size=(1, 1), stride=(1, 1))
+            self.model.head = nn.Linear(in_features=96, out_features=1, bias=True)
+            print()
+        elif False:
+            self.model = JustCBAM(image_depth=12, num_classes=1)
         else:
             self.model = models.resnet18()
             self.model.conv1 = nn.Conv2d(12, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
@@ -84,18 +100,25 @@ class ResNetClassifier(pl.LightningModule):
         self.log("val_accuracy", (y_true == y_pred).mean())
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=1e-3, weight_decay=1e-8)
+        return torch.optim.Adam(
+            [
+                {"params":list({k:v for k,v in self.model.named_parameters() if "head" not in k}.values())},
+                {"params":self.model.head.parameters(), "weight_decay":1e-8} # lower weight decay for head
+            ], lr=1e-3, weight_decay=0.3)
+
 
 def main():
 
+    imagesize = 64
+
     ds = MarineDebrisDataset(root="/data/marinedebris/marinedebris_refined", fold="train", shuffle=True,
-                             imagesize=640, transform=augment)
+                             imagesize=imagesize * 10, transform=get_train_transform(crop_size=imagesize))
 
     val_ds = MarineDebrisDataset(root="/data/marinedebris/marinedebris_refined", fold="val", shuffle=True,
-                             imagesize=640, transform=augment)
+                             imagesize=imagesize * 10, transform=None)
 
     ts = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
-    run_name = f"TinyCBAM_{ts}"
+    run_name = f"SwinT_{ts}"
     logger = WandbLogger(project="marinedebris", name=run_name, log_model=True, save_code=True)
 
     checkpointer = ModelCheckpoint(
@@ -106,11 +129,11 @@ def main():
         save_last=True,
     )
 
-
-
     model = ResNetClassifier()
-    train_loader = torch.utils.data.DataLoader(ds, batch_size=128, num_workers=16, drop_last=True)
-    val_loader = torch.utils.data.DataLoader(val_ds, batch_size=128, num_workers=16, drop_last=True)
+    #model.load_state_dict(torch.load("checkpoints/SwinT_2022-09-14_22:14:42/epoch=292-val_accuracy=0.89.ckpt")["state_dict"])
+
+    train_loader = torch.utils.data.DataLoader(ds, batch_size=256, num_workers=16, drop_last=True)
+    val_loader = torch.utils.data.DataLoader(val_ds, batch_size=256, num_workers=16, drop_last=True)
 
 
     trainer = pl.Trainer(max_epochs=1000, accelerator="gpu", callbacks=[checkpointer], logger=logger)
