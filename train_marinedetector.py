@@ -18,6 +18,7 @@ from model.cbamresnet import ResNet50
 from model.TinyCBAM import TinyCBAM
 from model.justCBAM import JustCBAM
 from torchvision.models.swin_transformer import SwinTransformer
+from torchvision.models import VisionTransformer
 from torch import nn
 
 class ResNetClassifier(pl.LightningModule):
@@ -41,7 +42,7 @@ class ResNetClassifier(pl.LightningModule):
             self.model = ResNet50(use_cbam=True, image_depth=12, num_classes=1)
         elif False:
             self.model = TinyCBAM(image_depth=12, num_classes=1, return_attention=return_attention)
-        elif True:
+        elif False:
             self.model = SwinTransformer(
                 patch_size=[1, 1],
                 embed_dim=96,
@@ -52,6 +53,18 @@ class ResNetClassifier(pl.LightningModule):
             self.model.features[0][0] = nn.Conv2d(12, 96, kernel_size=(1, 1), stride=(1, 1))
             self.model.head = nn.Linear(in_features=96, out_features=1, bias=True)
             print()
+        elif True:
+
+            self.model = VisionTransformer(
+                    image_size=32,
+                    patch_size=1,
+                    num_layers=1,
+                    num_heads=4,
+                    hidden_dim=64,
+                    mlp_dim=64)
+            self.model.conv_proj = nn.Conv2d(12, 64, kernel_size=(1, 1), stride=(1, 1))
+            self.model.heads.head = nn.Linear(in_features=64, out_features=1, bias=True)
+
         elif False:
             self.model = JustCBAM(image_depth=12, num_classes=1)
         else:
@@ -110,7 +123,7 @@ class ResNetClassifier(pl.LightningModule):
 
 def main():
 
-    imagesize = 64
+    imagesize = 32
 
     ds = MarineDebrisDataset(root="/data/marinedebris/marinedebris_refined", fold="train", shuffle=True,
                              imagesize=imagesize * 10, transform=get_train_transform(crop_size=imagesize))
@@ -119,7 +132,7 @@ def main():
                              imagesize=imagesize * 10, transform=None)
 
     ts = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
-    run_name = f"SwinT_{ts}"
+    run_name = f"Vit_{ts}"
     logger = WandbLogger(project="marinedebris", name=run_name, log_model=True, save_code=True)
 
     checkpointer = ModelCheckpoint(
