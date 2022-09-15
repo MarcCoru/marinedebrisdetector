@@ -100,11 +100,12 @@ class ResNetClassifier(pl.LightningModule):
         self.log("val_accuracy", (y_true == y_pred).mean())
 
     def configure_optimizers(self):
-        return torch.optim.Adam(
-            [
-                {"params":list({k:v for k,v in self.model.named_parameters() if "head" not in k}.values())},
-                {"params":self.model.head.parameters(), "weight_decay":1e-8} # lower weight decay for head
-            ], lr=1e-3, weight_decay=0.3)
+        return torch.optim.Adam(self.model.parameters(), lr=1e-4, weight_decay=1e-8)
+        #return torch.optim.Adam(
+        #    [
+        #        {"params":list({k:v for k,v in self.model.named_parameters() if "head" not in k}.values())},
+        #        {"params":self.model.head.parameters(), "weight_decay":1e-8} # lower weight decay for head
+        #    ], lr=1e-4, weight_decay=1e-8)
 
 
 def main():
