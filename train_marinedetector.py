@@ -14,6 +14,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.callbacks import Callback
 from transforms import get_train_transform
 from pytorch_lightning.loggers import WandbLogger
+from plot_attention_callback import PlotAttentionCallback
 from model.cbamresnet import ResNet50
 from model.TinyCBAM import TinyCBAM
 from model.justCBAM import JustCBAM
@@ -123,13 +124,15 @@ class ResNetClassifier(pl.LightningModule):
 
 def main():
 
-    imagesize = 32
+    imagesize = 64
+    crop_size = 32
+    workers = 16
 
     ds = MarineDebrisDataset(root="/data/marinedebris/marinedebris_refined", fold="train", shuffle=True,
-                             imagesize=imagesize * 10, transform=get_train_transform(crop_size=imagesize))
+                             imagesize=imagesize * 10, transform=get_train_transform(crop_size=crop_size))
 
     val_ds = MarineDebrisDataset(root="/data/marinedebris/marinedebris_refined", fold="val", shuffle=True,
-                             imagesize=imagesize * 10, transform=None)
+                             imagesize=crop_size * 10, transform=None)
 
     ts = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
     run_name = f"Vit_{ts}"
@@ -146,11 +149,14 @@ def main():
     model = ResNetClassifier()
     #model.load_state_dict(torch.load("checkpoints/SwinT_2022-09-14_22:14:42/epoch=292-val_accuracy=0.89.ckpt")["state_dict"])
 
-    train_loader = torch.utils.data.DataLoader(ds, batch_size=256, num_workers=16, drop_last=True)
-    val_loader = torch.utils.data.DataLoader(val_ds, batch_size=256, num_workers=16, drop_last=True)
+    train_loader = torch.utils.data.DataLoader(ds, batch_size=256, num_workers=workers, drop_last=True)
+    val_loader = torch.utils.data.DataLoader(val_ds, batch_size=256, num_workers=workers, drop_last=True)
 
 
-    trainer = pl.Trainer(max_epochs=1000, accelerator="gpu", callbacks=[checkpointer], logger=logger)
+    #checkpoint = "checkpoints/Vit_2022-09-15_21:18:37/epoch=591-val_accuracy=0.95.ckpt"
+    checkpoint = None
+    trainer = pl.Trainer(max_epochs=1000, accelerator="gpu", callbacks=[checkpointer, PlotAttentionCallback(logger)],
+                         logger=logger, fast_dev_run=False, resume_from_checkpoint=checkpoint)
     trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
 
 
