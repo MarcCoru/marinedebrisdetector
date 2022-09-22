@@ -60,9 +60,9 @@ class PlotAttentionCallback(Callback):
 
 def main():
     from data import MarineDebrisRegionDataset, MarineDebrisDataset
-    from train_marinedetector import ResNetClassifier
+    from train_marinedetector import Classifier
 
-    model = ResNetClassifier()
+    model = Classifier()
     checkpoint_file = "/home/marc/projects/marinedetector/checkpoints/Vit_2022-09-15_21:18:37/epoch=591-val_accuracy=0.95.ckpt"
     model.load_state_dict(torch.load(checkpoint_file)["state_dict"])
 
@@ -88,22 +88,31 @@ def main():
 
 
     model.eval()
-    model.model.encoder.layers.encoder_layer_0.ln_1.register_forward_hook(hook)
+    #model.model.encoder.layers.encoder_layer_0.ln_1.register_forward_hook(hook)
 
-    for i in range(10):
+    idxs = np.random.RandomState(0).randint(len(val_ds), size=20)
+    for i in idxs:
         x, y = val_ds[i]
 
-        logits = model(x.unsqueeze(0))
-        logits.backward()
+        logits, attns = model.model(x.unsqueeze(0), need_weights=True)
+        logits.backward(retain_graph=True)
+
+        a_matrix = torch.stack([attn[0, 1:].view(32, 32) for attn in attns[0]])
+
+        fig, axs = plt.subplots(1, 5, figsize=(3*5, 3))
+
+        axs[0].imshow(equalize_hist(x.numpy()[np.array([3,2,1])]).transpose(1,2,0))
+
+        for h, (ax, a) in enumerate(zip(axs[1:], a_matrix)):
+            ax.imshow(a.detach().numpy())
+            ax.set_title(f"head {h}")
 
         y_pred = logits>0
+        fig.suptitle(f"idx {i} pred {int(y_pred)}, true {int(y)}")
 
-        print(y_pred, y)
-        plt.figure()
-        plt.imshow(equalize_hist(x.numpy()[np.array([3,2,1])]).transpose(1,2,0))
+        plt.tight_layout()
         plt.show()
-
-    print()
+        plt.close(fig)
 
 if __name__ == '__main__':
     main()
