@@ -14,17 +14,20 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.callbacks import Callback
 from transforms import get_train_transform
 from pytorch_lightning.loggers import WandbLogger
+from plot_attention_callback import PlotAttentionCallback
 from model.cbamresnet import ResNet50
 from model.TinyCBAM import TinyCBAM
 from model.justCBAM import JustCBAM
 from torchvision.models.swin_transformer import SwinTransformer
-from torchvision.models import VisionTransformer
+
+from model.vit import VisionTransformer
 from torch import nn
 
-class ResNetClassifier(pl.LightningModule):
-    def __init__(self, return_attention=False):
+class Classifier(pl.LightningModule):
+    def __init__(self, model="torchvit"):
         super().__init__()
 
+        """
         if False:
             self.model = models.swin_t(weights=models.Swin_T_Weights(models.Swin_T_Weights.DEFAULT))
 
@@ -53,8 +56,13 @@ class ResNetClassifier(pl.LightningModule):
             self.model.features[0][0] = nn.Conv2d(12, 96, kernel_size=(1, 1), stride=(1, 1))
             self.model.head = nn.Linear(in_features=96, out_features=1, bias=True)
             print()
-        elif True:
 
+
+        elif False:
+            self.model = JustCBAM(image_depth=12, num_classes=1)
+            """
+        if model == "torchvit":
+            from torchvision.models import VisionTransformer
             self.model = VisionTransformer(
                     image_size=32,
                     patch_size=1,
@@ -64,13 +72,25 @@ class ResNetClassifier(pl.LightningModule):
                     mlp_dim=64)
             self.model.conv_proj = nn.Conv2d(12, 64, kernel_size=(1, 1), stride=(1, 1))
             self.model.heads.head = nn.Linear(in_features=64, out_features=1, bias=True)
+        elif model == "lrpvit":
+            from model.explLRP.VIT_LRP import VisionTransformer
+            self.model = VisionTransformer(
+                in_chans=12,
+                img_size=32,
+                patch_size=1,
+                depth=1,
+                num_heads=4,
+                embed_dim=64,
+                num_classes=1,
+                mlp_ratio=1)
 
-        elif False:
-            self.model = JustCBAM(image_depth=12, num_classes=1)
-        else:
+            print()
+        elif model == "resnet18":
             self.model = models.resnet18()
             self.model.conv1 = nn.Conv2d(12, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
             self.model.fc = nn.Linear(512,1)
+        else:
+            return NotImplementedError()
 
         """
         self.model = nn.Sequential(get_model("unet"),
@@ -123,16 +143,20 @@ class ResNetClassifier(pl.LightningModule):
 
 def main():
 
-    imagesize = 32
+    imagesize = 64
+    crop_size = 32
+    workers = 16
+
+    model = "lrpvit"
 
     ds = MarineDebrisDataset(root="/data/marinedebris/marinedebris_refined", fold="train", shuffle=True,
-                             imagesize=imagesize * 10, transform=get_train_transform(crop_size=imagesize))
+                             imagesize=imagesize * 10, transform=get_train_transform(crop_size=crop_size))
 
     val_ds = MarineDebrisDataset(root="/data/marinedebris/marinedebris_refined", fold="val", shuffle=True,
-                             imagesize=imagesize * 10, transform=None)
+                             imagesize=crop_size * 10, transform=None)
 
     ts = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
-    run_name = f"Vit_{ts}"
+    run_name = f"{model}_{ts}"
     logger = WandbLogger(project="marinedebris", name=run_name, log_model=True, save_code=True)
 
     checkpointer = ModelCheckpoint(
@@ -143,14 +167,17 @@ def main():
         save_last=True,
     )
 
-    model = ResNetClassifier()
+    model = Classifier(model=model)
     #model.load_state_dict(torch.load("checkpoints/SwinT_2022-09-14_22:14:42/epoch=292-val_accuracy=0.89.ckpt")["state_dict"])
 
-    train_loader = torch.utils.data.DataLoader(ds, batch_size=256, num_workers=16, drop_last=True)
-    val_loader = torch.utils.data.DataLoader(val_ds, batch_size=256, num_workers=16, drop_last=True)
+    train_loader = torch.utils.data.DataLoader(ds, batch_size=128, num_workers=workers, drop_last=True)
+    val_loader = torch.utils.data.DataLoader(val_ds, batch_size=128, num_workers=workers, drop_last=True)
 
 
-    trainer = pl.Trainer(max_epochs=1000, accelerator="gpu", callbacks=[checkpointer], logger=logger)
+    #checkpoint = "checkpoints/Vit_2022-09-15_21:18:37/epoch=591-val_accuracy=0.95.ckpt"
+    checkpoint = None
+    trainer = pl.Trainer(max_epochs=1000, accelerator="gpu", callbacks=[checkpointer],
+                         logger=logger, fast_dev_run=False, resume_from_checkpoint=checkpoint)
     trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
 
 
