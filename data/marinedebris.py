@@ -60,7 +60,7 @@ class MarineDebrisRegionDataset(Dataset):
         if self.data_transform is not None:
             image = self.data_transform(image.unsqueeze(0)).squeeze()
 
-        return image, point.type
+        return image, point.type, item
 
 class MarineDebrisDataset(ConcatDataset):
     def __init__(self, root, fold="train", **kwargs):

@@ -7,25 +7,25 @@ import geopandas as gpd
 import os
 import numpy as np
 import pandas as pd
+from data.utils import get_window, read_tif_image, pad, line_is_closed, \
+    split_line_gdf_into_segments, remove_lines_outside_bounds
+from data.label_refinement import refine_masks
 
-l1cbands = ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B9", "B10", "B11", "B12"]
-l2abands = ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B9", "B11", "B12"]
+L1CBANDS = ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B9", "B10", "B11", "B12"]
+L2ABANDS = ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B9", "B11", "B12"]
 
 # offset from image border to sample hard negative mining samples
 HARD_NEGATIVE_MINING_SAMPLE_BORDER_OFFSET = 1000  # meter
 
-allregions = [
-    "accra_20181031",
+trainregions = [
     "biscay_20180419",
     "danang_20181005",
     "kentpointfarm_20180710",
     "kolkata_20201115",
-    "lagos_20190101",
     "lagos_20200505",
     "london_20180611",
     "longxuyen_20181102",
     "mandaluyong_20180314",
-    "neworleans_20200202",
     "panama_20190425",
     "portalfredSouthAfrica_20180601",
     "riodejaneiro_20180504",
@@ -38,10 +38,18 @@ allregions = [
     "tungchungChina_20190922",
     "tunisia_20180715",
     "turkmenistan_20181030",
-    "venice_20180630",
     "venice_20180928",
     "vungtau_20180423"
     ]
+
+# same as regions in marinedebris.py
+valregions = [
+    "accra_20181031",
+    "lagos_20190101",
+    "neworleans_20200202",
+    "venice_20180630"
+]
+
 
 def get_region_split(seed=0, fractions=(0.6, 0.2, 0.2)):
 
@@ -66,39 +74,25 @@ def get_region_split(seed=0, fractions=(0.6, 0.2, 0.2)):
                 test=list(shuffled_regions[test_idxs]))
 
 
-def split_line_gdf_into_segments(lines):
-    def segments(curve):
-        return list(map(LineString, zip(curve.coords[:-1], curve.coords[1:])))
-
-    line_segments = []
-    for geometry in lines.geometry:
-        line_segments += segments(geometry)
-    return gpd.GeoDataFrame(geometry=line_segments)
 
 class FloatingSeaObjectRegionDataset(torch.utils.data.Dataset):
     def __init__(self, root, region, output_size=64,
                  transform=None, hard_negative_mining=True,
-                 use_l2a_probability=0.5, cache_to_npy=False):
+                 refine_labels=True, cache_to_npy=True):
 
         shapefile = os.path.join(root, region + ".shp")
+
         imagefile = os.path.join(root, region + ".tif")
         imagefilel2a = os.path.join(root, region + "_l2a.tif")
+        if os.path.exists(imagefilel2a):
+            imagefile = imagefilel2a # use l2afile if exists
 
-        # if 0.5 use 50% of time L2A image (if available)
-        # if 0 only L1C images are used
-        # if 1 only L2A images are used
-        self.use_l2a_probability = 0.5
-
-        # return zero-element dataset if use_l2a_probability=1 but l2a file not available
-        if use_l2a_probability == 1 and not os.path.exists(imagefilel2a):
-            self.lines = []
-            return  # break early out of this function
+        self.refine_labels = refine_labels
 
         self.transform = transform
         self.region = region
 
         self.imagefile = imagefile
-        self.imagefilel2a = imagefilel2a
         self.output_size = output_size
 
         with rio.open(imagefile) as src:
@@ -121,7 +115,7 @@ class FloatingSeaObjectRegionDataset(torch.utils.data.Dataset):
             self.lines = pd.concat([self.lines, random_points]).reset_index(drop=True)
 
         # remove line segments that are outside the image bounds
-        self.lines = self.lines.loc[self.lines.geometry.apply(self.within_image)]
+        self.lines = remove_lines_outside_bounds(self.lines, self.imagebounds)
 
         # take lines to rasterize
         rasterize_lines = self.lines.loc[~self.lines["is_hnm"]].geometry
@@ -130,13 +124,11 @@ class FloatingSeaObjectRegionDataset(torch.utils.data.Dataset):
         self.rasterize_geometries = pd.concat([rasterize_lines, rasterize_polygons])
 
         if cache_to_npy:
-            self.npyfolder = os.path.join(root, f"npy_{output_size}", region)
+            reflab_suffix = "_reflab" if refine_labels else ""
+            self.npyfolder = os.path.join(root, f"npy_{output_size}"+reflab_suffix, region)
             os.makedirs(self.npyfolder, exist_ok=True)
 
-    def within_image(self, geometry):
-        left, bottom, right, top = geometry.bounds
-        ileft, ibottom, iright, itop = self.imagebounds
-        return ileft < left and iright > right and itop > top and ibottom < bottom
+
 
     def sample_points_for_hard_negative_mining(self):
         # hard negative mining:
@@ -166,74 +158,53 @@ class FloatingSeaObjectRegionDataset(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.lines)
 
-    def __getitem__(self, index):
-
+    def item_in_cache(self, index):
+        return os.path.exists(os.path.join(self.npyfolder, str(index) + ".npz"))
+    def get_item_from_cache(self, index):
         # CACHING to Npyfolder for faster loading (20 seconds versus 3 minutes)
-        if hasattr(self, 'npyfolder'):
-            npzfile = os.path.join(self.npyfolder,str(index)+".npz")
-            if os.path.exists(npzfile):
-                with np.load(npzfile) as f:
-                    image = f["image"]
-                    mask = f["mask"]
-                    id = f["id"]
+        npzfile = os.path.join(self.npyfolder,str(index)+".npz")
 
-                if self.transform is not None:
-                    image, mask = self.transform(image, mask)
+        with np.load(npzfile) as f:
+            image = f["image"]
+            mask = f["mask"]
+            id = f["id"]
 
-                return image, mask, str(id)
+        return image, mask, str(id)
 
+    def __getitem__(self, index):
+        if hasattr(self, 'npyfolder') and self.item_in_cache(index):
+            image, mask, id = self.get_item_from_cache(index)
+        else:
+            image, mask, id = self.get_item_from_image(index)
+
+            # save to numpy
+            if hasattr(self, 'npyfolder'):
+                np.savez(os.path.join(self.npyfolder, str(index) + ".npz"),
+                         image=image,
+                         mask=mask,
+                         id=id)
+
+        if self.transform is not None:
+            image, mask = self.transform(image, mask)
+
+        return image, mask, id
+
+    def get_item_from_image(self, index):
         line = self.lines.iloc[index]
-        left, bottom, right, top = line.geometry.bounds
 
-        width = right - left
-        height = top - bottom
+        window = get_window(line, output_size=self.output_size, transform=self.imagemeta["transform"])
 
-        # buffer_left_right = (self.output_size[0] * 10 - width) / 2
-        buffer_left_right = (self.output_size * 10 - width) / 2
-        left -= buffer_left_right
-        right += buffer_left_right
+        image, win_transform = read_tif_image(self.imagefile, window)
 
-        # buffer_bottom_top = (self.output_size[1] * 10 - height) / 2
-        buffer_bottom_top = (self.output_size * 10 - height) / 2
-        bottom -= buffer_bottom_top
-        top += buffer_bottom_top
-
-        window = from_bounds(left, bottom, right, top, self.imagemeta["transform"])
-
-        imagefile = self.imagefile
-
-        if os.path.exists(self.imagefilel2a):
-            if np.random.rand() > self.use_l2a_probability:
-                imagefile = self.imagefilel2a
-
-        with rio.open(imagefile) as src:
-            image = src.read(window=window)
-            # keep only 12 bands: delete 10th band (nb: 9 because start idx=0)
-            if (image.shape[0] == 13):  # is L1C Sentinel 2 data
-                image = image[[l1cbands.index(b) for b in l2abands]]
-
-            win_transform = src.window_transform(window)
-
-        h_, w_ = image[0].shape
-        assert h_ > 0 and w_ > 0, f"{self.region}-{index} returned image size {image[0].shape}"
-        # only rasterize the not-hard negative mining samples
-
+        # rasterize geometries to mask
         mask = features.rasterize(self.rasterize_geometries, all_touched=True,
                                   transform=win_transform, out_shape=image[0].shape)
 
-        # if feature is near the image border, image wont be the desired output size
-        H, W = self.output_size, self.output_size
-        c, h, w = image.shape
-        dh = (H - h) / 2
-        dw = (W - w) / 2
-        image = np.pad(image, [(0, 0), (int(np.ceil(dh)), int(np.floor(dh))),
-                               (int(np.ceil(dw)), int(np.floor(dw)))])
+        # pad image if at the border
+        image, mask = pad(image, mask, self.output_size)
 
-        mask = np.pad(mask, [(int(np.ceil(dh)), int(np.floor(dh))),
-                             (int(np.ceil(dw)), int(np.floor(dw)))])
-
-        mask = mask.astype(float)
-        image = image.astype(float)
+        # to float
+        image, mask = image.astype(float), mask.astype(float)
 
 
         # mark random points form hard negative mining with a suffix
@@ -243,25 +214,23 @@ class FloatingSeaObjectRegionDataset(torch.utils.data.Dataset):
 
         image = np.nan_to_num(image)
 
-        # cache to npz
-        if hasattr(self, 'npyfolder'):
-            np.savez(os.path.join(self.npyfolder, str(index) + ".npz"),
-                     image=image,
-                     mask=mask,
-                     id=id)
-
-        if self.transform is not None:
-            image, mask = self.transform(image, mask)
+        if self.refine_labels:
+            if len(np.unique(mask)) > 1: # only if labels are present to be refined
+                mask = refine_masks(image, mask)
 
         return image, mask, id
 
 
 class FloatingSeaObjectDataset(torch.utils.data.ConcatDataset):
-    def __init__(self, root, fold="train", seed=0, **kwargs):
-        assert fold in ["train", "val", "test"]
+    def __init__(self, root, fold="train", **kwargs):
+        assert fold in ["train", "val"]
 
-        # make regions variable available to the outside
-        self.regions = get_region_split(seed)[fold]
+        if fold=="train":
+            self.regions = trainregions
+        elif fold == "val":
+            self.regions = valregions
+        else:
+            raise NotImplementedError()
 
         # initialize a concat dataset with the corresponding regions
         super().__init__(
@@ -269,8 +238,3 @@ class FloatingSeaObjectDataset(torch.utils.data.ConcatDataset):
         )
 
 
-def line_is_closed(linestringgeometry):
-    coordinates = np.stack(linestringgeometry.xy).T
-    first_point = coordinates[0]
-    last_point = coordinates[-1]
-    return bool((first_point == last_point).all())

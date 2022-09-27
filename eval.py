@@ -1,6 +1,6 @@
 print()
 from data import MarineDebrisRegionDataset, MarineDebrisDataset
-from train_marinedetector import ResNetClassifier
+from train_classification import ResNetClassifier
 import torch
 
 model = ResNetClassifier()

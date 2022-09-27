@@ -4,30 +4,9 @@ from skimage.exposure import equalize_hist
 import pandas as pd
 import pytorch_lightning as pl
 import wandb
-from matplotlib import cm
+from matplotlib import cm, colors
 import numpy as np
 import torch
-
-class PlotPredictionsCallback_old(pl.Callback):
-    def __init__(self, logger):
-        super().__init__()
-        self.logger = logger
-
-    def on_validation_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, unused=0):
-        self.last_outputs = outputs
-        self.last_batch = batch
-
-    def on_validation_epoch_end(self, trainer, pl_module):
-        images, masks, id = self.last_batch
-        y_scores = self.last_outputs["y_scores"]
-
-        predictions = [wandb.Image(cm.viridis(i)*256) for i in y_scores.squeeze(1).detach().cpu().numpy()]
-
-        rgb = equalize_hist(images[:, np.array([3, 2, 1])].detach().cpu().numpy())
-        rgb_images = [wandb.Image(i) for i in rgb.transpose(0,2,3,1)]
-
-        df = pd.DataFrame([predictions, rgb_images], index=["predictions","images"]).T
-        self.logger.log_table(key="predictions", dataframe=df, step=trainer.global_step)
 
 class PlotPredictionsCallback(pl.Callback):
     def __init__(self, logger, dataset, indices):
@@ -43,7 +22,9 @@ class PlotPredictionsCallback(pl.Callback):
 
         y_scores = torch.sigmoid(model(images))
 
-        predictions = [wandb.Image(cm.viridis(i)*256) for i in y_scores.squeeze(1).detach().cpu().numpy()]
+        norm = colors.Normalize(vmin=0, vmax=1, clip=True)
+        scmap = cm.ScalarMappable(norm=norm, cmap="viridis")
+        predictions = [wandb.Image(scmap.to_rgba(i)*255) for i in y_scores.squeeze(1).detach().cpu().numpy()]
 
         targets = [wandb.Image(cm.viridis(i)) for i in masks.detach().cpu().numpy()]
 
@@ -52,3 +33,39 @@ class PlotPredictionsCallback(pl.Callback):
 
         df = pd.DataFrame([predictions, rgb_images, targets, id], index=["predictions","images", "targets","id"]).T
         self.logger.log_table(key="predictions", dataframe=df, step=trainer.global_step)
+
+class PLPCallback(pl.Callback):
+    def __init__(self, logger, dataset):
+        super().__init__()
+        self.logger = logger
+        self.dataset = dataset
+
+    def on_validation_epoch_end(self, trainer, model):
+
+        images, masks, years = [], [], []
+        for image, mask, year in self.dataset:
+            images.append(image)
+            masks.append(mask)
+            years.append(year)
+
+        images = torch.from_numpy(np.stack(images)).to(model.device) * 1e-4
+        masks = torch.from_numpy(np.stack(masks)).to(model.device) > 0
+
+        y_probs = torch.sigmoid(model(images))
+        avg_probability = (y_probs.squeeze(1) * masks).mean()
+
+        self.logger.log_metrics({"avg_plp_probability": avg_probability.detach().cpu().numpy()})
+
+"""
+from predictor import PythonPredictor
+class PredictDurbanCallback(pl.Callback):
+    def __init__(self, imagepath, predpath):
+        super().__init__()
+        self.imagepath = imagepath
+        self.predpath = predpath
+        self.predictor = PythonPredictor(image_size=(480,480), device="cuda")
+
+    def on_validation_epoch_end(self, trainer, model):
+        self.predictor.predict(model.model, self.imagepath, self.predpath)
+        print()
+"""

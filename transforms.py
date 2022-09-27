@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 import random
-from data import l2abands as bands
+from data import L2ABANDS as bands
 
 #from torchvision import transforms
 """

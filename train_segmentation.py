@@ -7,6 +7,8 @@ from torch.utils.data import DataLoader
 from torch.optim import Adam
 from model import get_model
 from data import FloatingSeaObjectDataset
+from data.marinedebris import MarineDebrisRegionDataset
+from data.plastic_litter_project import PLPDataset
 from transforms import get_transform
 from sklearn.metrics import roc_curve
 import wandb
@@ -15,7 +17,11 @@ from pytorch_lightning.loggers import WandbLogger
 from sklearn.metrics import roc_auc_score, precision_recall_fscore_support, cohen_kappa_score, confusion_matrix, jaccard_score
 from loss import get_loss
 from visualization import fdi, ndvi
-from callbacks import PlotPredictionsCallback
+from callbacks import PlotPredictionsCallback, PLPCallback
+from data.s2ships import S2Ships
+
+from datetime import datetime
+import os
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -35,15 +41,6 @@ def parse_args():
 
     parser.add_argument('--learning-rate', type=float, default=1e-3)
     parser.add_argument('--pos-weight', type=float, default=1, help="positional weight for the floating object class, large values counteract")
-
-    """
-    Add a negative outlier loss to the worst classified negative pixels
-    """
-    parser.add_argument('--neg_outlier_loss_border', type=int, default=19, help="kernel sizes >0 ignore pixels close to the positive class.")
-    parser.add_argument('--neg_outlier_loss_num_pixel', type=int, default=100,
-                        help="Extra penalize the worst classified pixels (largest loss) of each pixel. Controls a fraction of total number of pixels"
-                             "Only useful with ignore_border_from_loss_kernelsize > 0.")
-    parser.add_argument('--neg_outlier_loss_penalty_factor', type=float, default=3, help="kernel sizes >0 ignore pixels close to the positive class.")
 
     args = parser.parse_args()
     # args.image_size = (args.image_size,args.image_size)
@@ -72,8 +69,8 @@ def calculate_metrics(targets, scores, optimal_threshold):
 
     return summary
 
-class LitModel(pl.LightningModule):
-    def __init__(self, learning_rate, weight_decay):
+class SegmentationModel(pl.LightningModule):
+    def __init__(self, learning_rate=1e-3, weight_decay=1e-8):
         super().__init__()
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
@@ -130,31 +127,60 @@ class LitModel(pl.LightningModule):
     def configure_optimizers(self):
         return Adam(self.model.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
 
+from data import MarineDebrisRegionDataset, MarineDebrisDataset
 def main(args):
 
-    model = LitModel(learning_rate=args.learning_rate, weight_decay=args.weight_decay)
-    model = model.load_from_checkpoint("/home/marc/projects/marinedetector/floatingobjects/hs5rnyqw/checkpoints/epoch=323-step=169776.ckpt")
+    model = SegmentationModel(learning_rate=args.learning_rate, weight_decay=args.weight_decay)
+    #model = model.load_from_checkpoint("/home/marc/projects/marinedetector/floatingobjects/hs5rnyqw/checkpoints/epoch=323-step=169776.ckpt")
 
-    dataset = FloatingSeaObjectDataset(args.data_path, fold="train",
-                                       transform=get_transform("train", intensity=args.augmentation_intensity,
-                                                               add_fdi_ndvi=args.add_fdi_ndvi),
-                                       output_size=args.image_size, seed=args.seed, cache_to_npy=True)
+    train_transform = get_transform("train", intensity=args.augmentation_intensity, cropsize=args.image_size)
+    image_load_size = int(args.image_size * 1.2) # load images slightly larger to be cropped later to image_size
+
+    flobs_dataset = FloatingSeaObjectDataset(args.data_path, fold="train",
+                                       transform=train_transform,refine_labels=True,
+                                       output_size=image_load_size, cache_to_npy=True)
+    shipsdataset = S2Ships("/data/marinedebris/S2SHIPS", imagesize=image_load_size, transform=train_transform)
+    train_dataset = torch.utils.data.ConcatDataset([flobs_dataset, shipsdataset])
+
     valid_dataset = FloatingSeaObjectDataset(args.data_path, fold="val",
-                                             transform=get_transform("test", add_fdi_ndvi=args.add_fdi_ndvi),
-                                             output_size=args.image_size, seed=args.seed, hard_negative_mining=False,
+                                             transform=get_transform("test", add_fdi_ndvi=args.add_fdi_ndvi, cropsize=args.image_size), refine_labels=True,
+                                             output_size=args.image_size, hard_negative_mining=False,
                                              cache_to_npy=True)
 
-    train_loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.workers)
+    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.workers)
     val_loader = DataLoader(valid_dataset, batch_size=args.batch_size, num_workers=args.workers, shuffle=False, drop_last=True)
 
-    wandb_logger = WandbLogger(project="floatingobjects", log_model=True)
-    wandb_logger.watch(model)
+    #ts = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+    run_name = f"unet"
+    logger = WandbLogger(project="flobs-segm", name=run_name, log_model=True, save_code=True)
+    #logger.watch(model)
 
-    plot_indices = np.random.randint(len(valid_dataset), size=64)
-    trainer = pl.Trainer(accelerator="gpu", logger=wandb_logger,
-                         callbacks=[PlotPredictionsCallback(logger=wandb_logger, dataset=valid_dataset, indices=plot_indices)],
+    checkpointer = pl.callbacks.ModelCheckpoint(
+        dirpath=os.path.join(os.getcwd(), "checkpoints", run_name),
+        filename="{epoch}-{val_loss:.2f}",
+        monitor="val_loss",
+        mode="min",
+        save_last=True,
+    )
+
+    plot_dataset = FloatingSeaObjectDataset(args.data_path, fold="val",
+                                             transform=get_transform("test", add_fdi_ndvi=False),
+                                             output_size=128, hard_negative_mining=False,
+                                             cache_to_npy=True, refine_labels=True)
+
+    plot_indices = np.random.randint(len(plot_dataset), size=6)
+    plot_predictions = PlotPredictionsCallback(logger=logger, dataset=plot_dataset, indices=plot_indices)
+
+    plp_dataset = PLPDataset(root="/data/marinedebris/PLP", year=2022, output_size=32)
+    plp_callback = PLPCallback(logger, plp_dataset)
+    #durban_callback = PredictDurbanCallback(imagepath="/data/marinedebris/durban/durban_20190424.tif", predpath="checkpoints/durban.tif")
+
+    trainer = pl.Trainer(accelerator="gpu", logger=logger,
+                         callbacks=[plot_predictions,
+                                    checkpointer,
+                                    plp_callback],
                          fast_dev_run=False)
-    trainer.fit(model, train_loader, val_loader)
+    trainer.fit(model, train_loader, val_loader, ckpt_path=f"checkpoints/{run_name}/last.ckpt")
 
 if __name__ == '__main__':
     main(parse_args())
