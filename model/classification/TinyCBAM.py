@@ -1,5 +1,5 @@
 from torch import nn
-from .cbamresnet import Channel_Attention, Spatial_Attention, CBAM
+from model.classification.cbamresnet import CBAM
 
 class TinyCBAM(nn.Module):
     '''Bottleneck modules

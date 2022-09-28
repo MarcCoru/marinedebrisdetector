@@ -7,14 +7,14 @@ import pandas as pd
 import numpy as np
 
 REGIONS = [
-    "accra_20181031",
+    #"accra_20181031", # remove accra, as will be in test
     "lagos_20190101",
     "marmara_20210519",
     "neworleans_20200202",
     "venice_20180630"
 ]
 
-class MarineDebrisRegionDataset(Dataset):
+class RefinedFlobsRegionDataset(Dataset):
 
     def __init__(self, root, region, imagesize=1280, shuffle=False, transform=None):
         self.points = gpd.read_file(os.path.join(root, region + ".shp"))
@@ -58,29 +58,31 @@ class MarineDebrisRegionDataset(Dataset):
         image = torch.from_numpy((image * 1e-4).astype(rio.float32))
 
         if self.data_transform is not None:
-            image = self.data_transform(image.unsqueeze(0)).squeeze()
+            image = self.data_transform(image)
 
         return image, point.type, item
 
-class MarineDebrisDataset(ConcatDataset):
-    def __init__(self, root, fold="train", **kwargs):
-        assert fold in ["train", "val"], f"fold {fold} not in train or val"
+class RefinedFlobsDataset(ConcatDataset):
+    def __init__(self, root, fold="val", **kwargs):
+        assert fold in ["val", "test"], f"fold {fold} not in val or test"
 
-        if fold == "train":
+        if fold == "val":
             self.regions = ["lagos_20190101",
                             "marmara_20210519",
                             "neworleans_20200202",
                             "venice_20180630"]
-        elif fold == "val":
+        elif fold == "test": # may not be used
             self.regions = ["accra_20181031"]
+        else:
+            raise NotImplementedError()
 
         # initialize a concat dataset with the corresponding regions
         super().__init__(
-            [MarineDebrisRegionDataset(root, region, **kwargs) for region in self.regions]
+            [RefinedFlobsRegionDataset(root, region, **kwargs) for region in self.regions]
         )
 
 def main():
-    ds = MarineDebrisRegionDataset(root="/ssd/marinedebris/marinedebris_refined" ,region="accra_20181031")
+    ds = RefinedFlobsDataset(root="/ssd/marinedebris/marinedebris_refined" ,region="accra_20181031")
 
     import matplotlib.pyplot as plt
     from skimage.exposure import equalize_hist
@@ -92,8 +94,6 @@ def main():
 
     plt.show()
     print()
-
-
 
 if __name__ == '__main__':
     main()

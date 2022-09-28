@@ -1,26 +1,15 @@
-from data import MarineDebrisRegionDataset, MarineDebrisDataset
-import matplotlib.pyplot as plt
-from skimage.exposure import equalize_hist
+from data import MarineDebrisDataset
 import numpy as np
 import torch
 from datetime import datetime
 
 import pytorch_lightning as pl
-import torch.nn as nn
-import torch.nn.functional as F
 from torchvision import models
 from pytorch_lightning.callbacks import ModelCheckpoint
 
-from pytorch_lightning.callbacks import Callback
 from transforms import get_train_transform
 from pytorch_lightning.loggers import WandbLogger
-from plot_attention_callback import PlotAttentionCallback
-from model.cbamresnet import ResNet50
-from model.TinyCBAM import TinyCBAM
-from model.justCBAM import JustCBAM
-from torchvision.models.swin_transformer import SwinTransformer
 
-from model.vit import VisionTransformer
 from torch import nn
 
 class Classifier(pl.LightningModule):
@@ -73,7 +62,7 @@ class Classifier(pl.LightningModule):
             self.model.conv_proj = nn.Conv2d(12, 64, kernel_size=(1, 1), stride=(1, 1))
             self.model.heads.head = nn.Linear(in_features=64, out_features=1, bias=True)
         elif model == "lrpvit":
-            from model.explLRP.VIT_LRP import VisionTransformer
+            from model.classification.explLRP import VisionTransformer
             self.model = VisionTransformer(
                 in_chans=12,
                 img_size=32,

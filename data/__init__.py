@@ -1,2 +1,2 @@
 from .floatingobjects import FloatingSeaObjectDataset, L2ABANDS, L1CBANDS
-from .marinedebris import MarineDebrisRegionDataset, MarineDebrisDataset
+from .refined_floatingobjects import RefinedFlobsDataset, RefinedFlobsRegionDataset

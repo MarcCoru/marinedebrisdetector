@@ -42,14 +42,13 @@ trainregions = [
     "vungtau_20180423"
     ]
 
-# same as regions in marinedebris.py
+# same as regions in refined_floatingobjects.py
 valregions = [
     "accra_20181031",
     "lagos_20190101",
     "neworleans_20200202",
     "venice_20180630"
 ]
-
 
 def get_region_split(seed=0, fractions=(0.6, 0.2, 0.2)):
 

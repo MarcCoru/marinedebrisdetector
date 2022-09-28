@@ -16,7 +16,7 @@ def center_crop(image,mask):
 def get_transform(mode, intensity=0, add_fdi_ndvi=False, cropsize = 224):
     assert mode in ["train", "test"]
     if mode in ["train"]:
-        def train_transform(image, mask):
+        def train_transform(image, mask=None):
 
             if add_fdi_ndvi:
                 fdi = np.expand_dims(calculate_fdi(image),0)
@@ -30,7 +30,7 @@ def get_transform(mode, intensity=0, add_fdi_ndvi=False, cropsize = 224):
             return data_augmentation(image, mask)
         return train_transform
     else:
-        def test_transform(image, mask):
+        def test_transform(image, mask=None):
             if add_fdi_ndvi:
                 fdi = np.expand_dims(calculate_fdi(image),0)
                 ndvi = np.expand_dims(calculate_ndvi(image),0)
@@ -41,8 +41,11 @@ def get_transform(mode, intensity=0, add_fdi_ndvi=False, cropsize = 224):
             image, mask = center_crop(image, mask, cropsize)
 
             image = torch.Tensor(image)
-            mask = torch.Tensor(mask)
-            return image, mask
+            if mask is not None:
+                mask = torch.Tensor(mask)
+                return image, mask
+            else:
+                return image
         return test_transform
 
 
@@ -73,24 +76,27 @@ def get_data_augmentation(intensity, cropsize):
     do data augmentation:
     model
     """
-    def data_augmentation(image, mask):
+    def data_augmentation(image, mask=None):
         image = torch.Tensor(image)
-        mask = torch.Tensor(mask)
-        mask = mask.unsqueeze(0)
+        if mask is not None:
+            mask = torch.Tensor(mask).unsqueeze(0)
 
         if random.random() < 0.5:
             # flip left right
             image = torch.fliplr(image)
-            mask = torch.fliplr(mask)
+            if mask is not None:
+                mask = torch.fliplr(mask)
 
         rot = np.random.choice([0,1,2,3])
         image = torch.rot90(image, rot, [1, 2])
-        mask = torch.rot90(mask, rot, [1, 2])
+        if mask is not None:
+            mask = torch.rot90(mask, rot, [1, 2])
 
         if random.random() < 0.5:
             # flip up-down
             image = torch.flipud(image)
-            mask = torch.flipud(mask)
+            if mask is not None:
+                mask = torch.flipud(mask)
 
         if intensity >= 1:
 
@@ -100,7 +106,8 @@ def get_data_augmentation(intensity, cropsize):
             scale_factor = np.max([scale_factor, min_scale_factor])
 
             image = torch.nn.functional.interpolate(image.unsqueeze(0), scale_factor=scale_factor, mode="bilinear", align_corners=True,recompute_scale_factor=True).squeeze(0)
-            mask = torch.nn.functional.interpolate(mask.unsqueeze(0), scale_factor=scale_factor, mode="bilinear", align_corners=True,recompute_scale_factor=True).squeeze(0)
+            if mask is not None:
+                mask = torch.nn.functional.interpolate(mask.unsqueeze(0), scale_factor=scale_factor, mode="bilinear", align_corners=True,recompute_scale_factor=True).squeeze(0)
 
             image, mask = random_crop(image, mask, cropsize=cropsize)
 
@@ -129,11 +136,14 @@ def get_data_augmentation(intensity, cropsize):
                 np.random.shuffle(idxs) # random band indixes
                 image = image[idxs]
 
-        mask = mask.squeeze(0)
-        return image, mask
+        if mask is not None:
+            mask = mask.squeeze(0)
+            return image, mask
+        else:
+            return image
     return data_augmentation
 
-def random_crop(image, mask, cropsize):
+def random_crop(image, mask=None, cropsize=64):
     C, W, H = image.shape
     w, h = cropsize, cropsize
 
@@ -146,18 +156,21 @@ def random_crop(image, mask, cropsize):
 
     # crop image
     image = image[:, x - dw:x + dw, y - dh:y + dh]
-    mask = mask[:, x - dw:x + dw, y - dh:y + dh]
+    if mask is not None:
+        mask = mask[:, x - dw:x + dw, y - dh:y + dh]
 
     return image, mask
 
-def center_crop(image, mask, size):
+
+def center_crop(image, mask=None, size=64):
     D, H, W = image.shape
 
     cx = W // 2
     cy = H // 2
 
     image = image[:, cx-size//2:cx+size//2, cy-size//2:cy+size//2]
-    mask = mask[cx-size//2:cx+size//2, cy-size//2:cy+size//2]
+    if mask is not None:
+        mask = mask[cx-size//2:cx+size//2, cy-size//2:cy+size//2]
     return image, mask
 
 import torch

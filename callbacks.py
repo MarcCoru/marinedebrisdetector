@@ -35,6 +35,25 @@ class PlotPredictionsCallback(pl.Callback):
         df = pd.DataFrame([predictions, rgb_images, targets, id], index=["predictions","images", "targets","id"]).T
         self.logger.log_table(key="predictions", dataframe=df, step=trainer.global_step)
 
+class RefinedRegionsCallback(pl.Callback):
+    def __init__(self, logger, dataloader):
+        super().__init__()
+        self.logger = logger
+        self.dataloader = dataloader
+
+    def on_validation_epoch_end(self, trainer, model):
+        for idx, (x,y,id) in enumerate(self.dataloader):
+            y_pred = model.predict(x)
+
+            N, C, H, W = x.shape
+            h = H // 2
+            w = W // 2
+
+            center_pixels = y_pred[:,0,h,w]
+
+
+            print()
+
 class PLPCallback(pl.Callback):
     def __init__(self, logger, dataset):
         super().__init__()
