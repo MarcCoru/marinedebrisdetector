@@ -150,8 +150,8 @@ def main(args):
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.workers)
     val_loader = DataLoader(valid_dataset, batch_size=args.batch_size, num_workers=args.workers, shuffle=False, drop_last=True)
 
-    #ts = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
-    run_name = f"unet"
+    ts = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+    run_name = f"unet_{ts}"
     logger = WandbLogger(project="flobs-segm", name=run_name, log_model=True, save_code=True)
     #logger.watch(model)
 
@@ -175,12 +175,12 @@ def main(args):
     plp_callback = PLPCallback(logger, plp_dataset)
     #durban_callback = PredictDurbanCallback(imagepath="/data/marinedebris/durban/durban_20190424.tif", predpath="checkpoints/durban.tif")
 
-    trainer = pl.Trainer(accelerator="gpu", logger=logger,
+    trainer = pl.Trainer(accelerator="gpu", logger=logger,devices=1,
                          callbacks=[plot_predictions,
                                     checkpointer,
                                     plp_callback],
                          fast_dev_run=False)
-    trainer.fit(model, train_loader, val_loader, ckpt_path=f"checkpoints/{run_name}/last.ckpt")
+    trainer.fit(model, train_loader, val_loader)# , ckpt_path=f"checkpoints/{run_name}/last.ckpt")
 
 if __name__ == '__main__':
     main(parse_args())
