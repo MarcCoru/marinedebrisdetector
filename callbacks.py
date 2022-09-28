@@ -7,6 +7,7 @@ import wandb
 from matplotlib import cm, colors
 import numpy as np
 import torch
+from visualization import rgb, fdi, ndvi
 
 class PlotPredictionsCallback(pl.Callback):
     def __init__(self, logger, dataset, indices):
@@ -49,12 +50,44 @@ class PLPCallback(pl.Callback):
             years.append(year)
 
         images = torch.from_numpy(np.stack(images)).to(model.device) * 1e-4
-        masks = torch.from_numpy(np.stack(masks)).to(model.device) > 0
+        masks = torch.from_numpy(np.stack(masks)).to(model.device)
 
-        y_probs = torch.sigmoid(model(images))
-        avg_probability = (y_probs.squeeze(1) * masks).mean()
+        y_probs = torch.sigmoid(model(images)).squeeze(1)
 
-        self.logger.log_metrics({"avg_plp_probability": avg_probability.detach().cpu().numpy()})
+        stats = []
+        for image, mask, y_prob, year in zip(images, masks, y_probs, years):
+            stat = dict(year=year)
+
+            for cl in np.unique(mask.cpu()):
+                m = mask == cl
+                avg_prob_c = y_prob[m].mean()
+                stat[f"cl_{int(cl)}"] = float(avg_prob_c)
+
+            norm = colors.Normalize(vmin=-0.1, vmax=0.1, clip=True)
+            scmap = cm.ScalarMappable(norm=norm, cmap="magma")
+            stat["fdi"] = wandb.Image(scmap.to_rgba(fdi(image).cpu()))
+
+            norm = colors.Normalize(vmin=-0.5, vmax=0.5, clip=True)
+            scmap = cm.ScalarMappable(norm=norm, cmap="viridis")
+            stat["ndvi"] = wandb.Image(scmap.to_rgba(ndvi(image).cpu()))
+
+            norm = colors.Normalize(vmin=0, vmax=1, clip=True)
+            scmap = cm.ScalarMappable(norm=norm, cmap="viridis")
+            stat["prob"] = wandb.Image(scmap.to_rgba(y_prob.cpu()))
+
+            maxcl = torch.unique(mask).max().cpu().numpy()
+            norm = colors.Normalize(vmin=0, vmax=maxcl, clip=True)
+            scmap = cm.ScalarMappable(norm=norm, cmap="tab10")
+            stat["annot"] = wandb.Image(scmap.to_rgba(mask.cpu()))
+
+            stat["rgb"] = wandb.Image(rgb(image.cpu().numpy()).transpose(1, 2, 0))
+
+            stats.append(stat)
+
+        df = pd.DataFrame(stats)
+
+        self.logger.log_table(key="PLP2022", dataframe=df, step=trainer.global_step)
+
 
 """
 from predictor import PythonPredictor

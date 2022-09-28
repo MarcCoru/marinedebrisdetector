@@ -4,17 +4,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
 
-def get_model(modelname, inchannels=12, pretrained=True):
-
-    if modelname == "unet":
-        # initialize model (random weights)
-        return UNet(n_channels=inchannels,
-                     n_classes=1,
-                     bilinear=False)
-    else:
-        raise NotImplementedError()
-
-
 #============== some parts of the U-Net model ===============#
 """ Parts of the U-Net model """
 class DoubleConv(nn.Module):

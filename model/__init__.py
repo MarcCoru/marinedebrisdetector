@@ -1,1 +1,1 @@
-from model.unet import get_model
+from model.model import get_model
