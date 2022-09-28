@@ -155,7 +155,7 @@ def main(args):
     train_dataset = torch.utils.data.ConcatDataset([flobs_dataset, shipsdataset])
 
     valid_dataset = FloatingSeaObjectDataset(args.data_path, fold="val",
-                                             transform=get_transform("test", add_fdi_ndvi=args.add_fdi_ndvi, cropsize=args.image_size), refine_labels=True,
+                                             transform=get_transform("test", add_fdi_ndvi=False, cropsize=args.image_size), refine_labels=True,
                                              output_size=args.image_size, hard_negative_mining=False,
                                              cache_to_npy=True)
 
