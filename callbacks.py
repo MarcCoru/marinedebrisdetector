@@ -1,5 +1,3 @@
-
-import matplotlib.pyplot as plt
 from skimage.exposure import equalize_hist
 import pandas as pd
 import pytorch_lightning as pl
@@ -35,24 +33,45 @@ class PlotPredictionsCallback(pl.Callback):
         df = pd.DataFrame([predictions, rgb_images, targets, id], index=["predictions","images", "targets","id"]).T
         self.logger.log_table(key="predictions", dataframe=df, step=trainer.global_step)
 
-class RefinedRegionsCallback(pl.Callback):
-    def __init__(self, logger, dataloader):
+class RefinedRegionsQualitativeCallback(pl.Callback):
+    def __init__(self, logger, dataset):
         super().__init__()
         self.logger = logger
-        self.dataloader = dataloader
+        self.dataset = dataset
 
     def on_validation_epoch_end(self, trainer, model):
-        for idx, (x,y,id) in enumerate(self.dataloader):
-            y_pred = model.predict(x)
+        stats = []
+        for idx, (x,id) in enumerate(self.dataset):
+            stat = dict(id=id)
 
-            N, C, H, W = x.shape
-            h = H // 2
-            w = W // 2
+            image = torch.from_numpy(x).unsqueeze(0).to(model.device)
+            y_prob = torch.sigmoid(model(image).squeeze())
+            pred = y_prob > model.threshold
 
-            center_pixels = y_pred[:,0,h,w]
+            norm = colors.Normalize(vmin=-0.1, vmax=0.1, clip=True)
+            scmap = cm.ScalarMappable(norm=norm, cmap="magma")
+            stat["fdi"] = wandb.Image(scmap.to_rgba(fdi(image.squeeze(0)).cpu()))
 
+            norm = colors.Normalize(vmin=-0.5, vmax=0.5, clip=True)
+            scmap = cm.ScalarMappable(norm=norm, cmap="viridis")
+            stat["ndvi"] = wandb.Image(scmap.to_rgba(ndvi(image.squeeze(0)).cpu()))
 
-            print()
+            norm = colors.Normalize(vmin=0, vmax=1, clip=True)
+            scmap = cm.ScalarMappable(norm=norm, cmap="viridis")
+            stat["prob"] = wandb.Image(scmap.to_rgba(y_prob.cpu()))
+
+            norm = colors.Normalize(vmin=0, vmax=1, clip=True)
+            scmap = cm.ScalarMappable(norm=norm, cmap="tab10")
+            stat["annot"] = wandb.Image(scmap.to_rgba(pred.cpu()))
+
+            stat["rgb"] = wandb.Image(rgb(image.squeeze(0).cpu().numpy()).transpose(1, 2, 0))
+
+            stats.append(stat)
+
+        df = pd.DataFrame(stats)
+
+        self.logger.log_table(key="qualitative", dataframe=df, step=trainer.global_step)
+
 
 class PLPCallback(pl.Callback):
     def __init__(self, logger, dataset):
@@ -97,7 +116,7 @@ class PLPCallback(pl.Callback):
             maxcl = torch.unique(mask).max().cpu().numpy()
             norm = colors.Normalize(vmin=0, vmax=maxcl, clip=True)
             scmap = cm.ScalarMappable(norm=norm, cmap="tab10")
-            stat["annot"] = wandb.Image(scmap.to_rgba(mask.cpu()))
+            stat["class"] = wandb.Image(scmap.to_rgba(mask.cpu()))
 
             stat["rgb"] = wandb.Image(rgb(image.cpu().numpy()).transpose(1, 2, 0))
 
@@ -105,19 +124,4 @@ class PLPCallback(pl.Callback):
 
         df = pd.DataFrame(stats)
 
-        self.logger.log_table(key="PLP2022", dataframe=df, step=trainer.global_step)
-
-
-"""
-from predictor import PythonPredictor
-class PredictDurbanCallback(pl.Callback):
-    def __init__(self, imagepath, predpath):
-        super().__init__()
-        self.imagepath = imagepath
-        self.predpath = predpath
-        self.predictor = PythonPredictor(image_size=(480,480), device="cuda")
-
-    def on_validation_epoch_end(self, trainer, model):
-        self.predictor.predict(model.model, self.imagepath, self.predpath)
-        print()
-"""
+        self.logger.log_table(key=f"PLP{self.dataset.year}", dataframe=df, step=trainer.global_step)

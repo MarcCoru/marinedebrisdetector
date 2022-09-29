@@ -14,7 +14,8 @@ import matplotlib.pyplot as plt
 bands = ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B9", "B11", "B12"]
 
 class PLPDataset(torch.utils.data.Dataset):
-    def __init__(self, root, year=2021 , output_size=64):
+    def __init__(self, root, year=2021, output_size=64):
+        self.year = year
         self.image_root = os.path.join(root, f"PLP{year}", "Sentinel-2")
         targets_shapefile = os.path.join(root, f"PLP{year}", f"PLP{year}_targets.shp")
         self.targets_gdf = gpd.read_file(targets_shapefile)

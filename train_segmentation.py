@@ -6,7 +6,7 @@ import argparse
 from data.plastic_litter_project import PLPDataset
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
-from callbacks import PLPCallback
+from callbacks import PLPCallback, RefinedRegionsQualitativeCallback
 from data.marinedebrisdatamodule import MarineDebrisDataModule
 from model.segmentation_model import SegmentationModel
 
@@ -51,18 +51,23 @@ def main(args):
     checkpointer = pl.callbacks.ModelCheckpoint(
         dirpath=os.path.join(os.getcwd(), "checkpoints", run_name),
         filename="{epoch}-{val_loss:.2f}",
-        save_top_k=3,
+        save_top_k=1,
         monitor="val_loss",
         mode="min",
         save_last=True,
     )
 
-    plp_dataset = PLPDataset(root="/data/marinedebris/PLP", year=2022, output_size=32)
-    plp_callback = PLPCallback(logger, plp_dataset)
+    plp_callback_2021 = PLPCallback(logger, marinedebris_datamodule.get_plp_dataset(2021))
+    plp_callback_2022 = PLPCallback(logger, marinedebris_datamodule.get_plp_dataset(2022))
+
+    qual_image_callback = RefinedRegionsQualitativeCallback(logger,
+                                                            marinedebris_datamodule.get_qualitative_validation_dataset())
 
     trainer = pl.Trainer(accelerator="gpu", logger=logger, devices=1,
                          callbacks=[checkpointer,
-                                    plp_callback],
+                                    plp_callback_2021,
+                                    plp_callback_2022,
+                                    qual_image_callback],
                          max_epochs=args.max_epochs,
                          fast_dev_run=False)
 

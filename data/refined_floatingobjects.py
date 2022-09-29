@@ -5,6 +5,7 @@ import os
 import rasterio as rio
 import pandas as pd
 import numpy as np
+from data.utils import read_tif_image
 
 REGIONS = [
     #"accra_20181031", # remove accra, as will be in test
@@ -13,6 +14,13 @@ REGIONS = [
     "neworleans_20200202",
     "venice_20180630"
 ]
+
+val_regions = ["lagos_20190101",
+                "marmara_20210519",
+                "neworleans_20200202",
+                "venice_20180630"]
+
+test_regions = ["accra_20181031"]
 
 class RefinedFlobsRegionDataset(Dataset):
 
@@ -67,12 +75,9 @@ class RefinedFlobsDataset(ConcatDataset):
         assert fold in ["val", "test"], f"fold {fold} not in val or test"
 
         if fold == "val":
-            self.regions = ["lagos_20190101",
-                            "marmara_20210519",
-                            "neworleans_20200202",
-                            "venice_20180630"]
+            self.regions = val_regions
         elif fold == "test": # may not be used
-            self.regions = ["accra_20181031"]
+            self.regions = test_regions
         else:
             raise NotImplementedError()
 
@@ -81,19 +86,73 @@ class RefinedFlobsDataset(ConcatDataset):
             [RefinedFlobsRegionDataset(root, region, **kwargs) for region in self.regions]
         )
 
+class RefinedFlobsQualitativeRegionDataset(Dataset):
+    def __init__(self, root, region, transform=None):
+        self.tifffile = os.path.join(root, region + ".tif")
+        self.region = region
+        bboxes = gpd.read_file(os.path.join(root, region+"_qualitative_bbox.shp"))
+
+        with rio.open(self.tifffile) as src:
+            self.crs = src.crs
+            self.transform = src.transform
+
+        bboxes = bboxes.to_crs(self.crs)
+
+        self.images = []
+        for i, row in bboxes.iterrows():
+            left, bottom, right, top = row.geometry.bounds
+            window = rio.windows.from_bounds(left, bottom, right, top, self.transform)
+
+            self.images.append(read_tif_image(self.tifffile, window)[0])
+
+    def __len__(self):
+        return len(self.images)
+
+    def __getitem__(self, item):
+        image = self.images[item] * 1e-4
+        return image, f"{self.region}-{item}"
+
+class RefinedFlobsQualitativeDataset(ConcatDataset):
+    def __init__(self, root, fold="val", **kwargs):
+        assert fold in ["val", "test"], f"fold {fold} not in val or test"
+
+        if fold == "val":
+            self.regions = val_regions
+        elif fold == "test": # may not be used
+            self.regions = test_regions
+        else:
+            raise NotImplementedError()
+
+        # initialize a concat dataset with the corresponding regions
+        super().__init__(
+            [RefinedFlobsQualitativeRegionDataset(root, region, **kwargs) for region in self.regions]
+        )
+
 def main():
-    ds = RefinedFlobsDataset(root="/ssd/marinedebris/marinedebris_refined" ,region="accra_20181031")
+
+    ds = RefinedFlobsQualitativeDataset(root="/data/marinedebris/marinedebris_refined", fold="val")
+    for i,id in ds:
+        print(i.shape, id)
+
+    ds = RefinedFlobsQualitativeDataset(root="/data/marinedebris/marinedebris_refined", fold="test")
+    for i,id in ds:
+        print(i.shape, id)
+
+    return
+    ds = RefinedFlobsRegionDataset(root="/data/marinedebris/marinedebris_refined" ,region="accra_20181031")
 
     import matplotlib.pyplot as plt
     from skimage.exposure import equalize_hist
     import numpy as np
 
-    image, label = ds[0]
-    rgb = equalize_hist(image[np.array([3, 2, 1])]).transpose(1,2,0)
+    image, label, id = ds[0]
+    rgb = equalize_hist(image.numpy()[np.array([3, 2, 1])]).transpose(1,2,0)
     plt.imshow(rgb)
 
     plt.show()
     print()
+
+
 
 if __name__ == '__main__':
     main()

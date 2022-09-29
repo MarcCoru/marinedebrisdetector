@@ -4,7 +4,8 @@ from torch.utils.data import DataLoader, ConcatDataset
 from transforms import get_transform
 from data.floatingobjects import FloatingSeaObjectDataset
 from data.s2ships import S2Ships
-from data.refined_floatingobjects import RefinedFlobsDataset
+from data.refined_floatingobjects import RefinedFlobsDataset, RefinedFlobsQualitativeDataset
+from data.plastic_litter_project import PLPDataset
 
 class MarineDebrisDataModule(pl.LightningDataModule):
     def __init__(self, data_root: str = "/data/marinedebris",
@@ -23,6 +24,7 @@ class MarineDebrisDataModule(pl.LightningDataModule):
         self.flobs_path = os.path.join(self.data_root, "floatingobjects")
         self.refined_flobs_path = os.path.join(self.data_root, "marinedebris_refined")
         self.s2ships_path = os.path.join(self.data_root, "S2SHIPS")
+        self.plp_path = os.path.join(self.data_root, "PLP")
 
     def setup(self, stage: str):
         train_transform = get_transform("train", intensity=self.augmentation_intensity, cropsize=self.image_size)
@@ -34,6 +36,16 @@ class MarineDebrisDataModule(pl.LightningDataModule):
         self.train_dataset = ConcatDataset([flobs_dataset, shipsdataset])
         self.valid_dataset = RefinedFlobsDataset(root=self.refined_flobs_path, fold="val")
         self.test_dataset = RefinedFlobsDataset(root=self.refined_flobs_path, fold="test")
+
+    def get_qualitative_validation_dataset(self):
+        return RefinedFlobsQualitativeDataset(root=self.refined_flobs_path, fold="val")
+
+    def get_qualitative_test_dataset(self):
+        return RefinedFlobsQualitativeDataset(root=self.refined_flobs_path, fold="test")
+
+    def get_plp_dataset(self, year):
+        return PLPDataset(root=self.plp_path, year=year, output_size=32)
+
 
     def train_dataloader(self):
         return DataLoader(self.train_dataset,
