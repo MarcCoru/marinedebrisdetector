@@ -1,6 +1,8 @@
+venv
 .idea
 checkpoints
 **__pycache__
 wandb
 .ipynb_checkpoints
 notebooks
+*.out
