@@ -14,3 +14,4 @@ scikit-image
 matplotlib
 wandb
 segmentation-models-pytorch
+earthengine-api

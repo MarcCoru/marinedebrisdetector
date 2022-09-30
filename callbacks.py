@@ -72,7 +72,6 @@ class RefinedRegionsQualitativeCallback(pl.Callback):
 
         self.logger.log_table(key="qualitative", dataframe=df, step=trainer.global_step)
 
-
 class PLPCallback(pl.Callback):
     def __init__(self, logger, dataset):
         super().__init__()
