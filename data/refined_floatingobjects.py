@@ -27,7 +27,7 @@ class RefinedFlobsRegionDataset(Dataset):
     def __init__(self, root, region, imagesize=1280, shuffle=False, transform=None):
         self.points = gpd.read_file(os.path.join(root, region + ".shp"))
         if shuffle:
-            self.points = self.points.sample(frac=1)
+            self.points = self.points.sample(frac=1, random_state=0)
         self.tifffile = os.path.join(root, region + ".tif")
         self.imagesize = imagesize
         self.data_transform = transform
@@ -87,9 +87,11 @@ class RefinedFlobsDataset(ConcatDataset):
         )
 
 class RefinedFlobsQualitativeRegionDataset(Dataset):
-    def __init__(self, root, region, transform=None):
+    def __init__(self, root, region, output_size=None):
         self.tifffile = os.path.join(root, region + ".tif")
         self.region = region
+        self.output_size = output_size # overwrite geometry and fix a squared output size
+
         bboxes = gpd.read_file(os.path.join(root, region+"_qualitative_bbox.shp"))
 
         with rio.open(self.tifffile) as src:
@@ -97,6 +99,9 @@ class RefinedFlobsQualitativeRegionDataset(Dataset):
             self.transform = src.transform
 
         bboxes = bboxes.to_crs(self.crs)
+
+        if output_size is not None:
+            bboxes.geometry = bboxes.geometry.centroid.buffer((output_size * 10)//2)
 
         self.images = []
         for i, row in bboxes.iterrows():

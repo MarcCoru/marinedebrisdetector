@@ -25,6 +25,10 @@ def parse_args():
     parser.add_argument('--no-checkpoint', action="store_true")
     parser.add_argument('--max-epochs', type=int, default=100)
 
+    # ablations
+    parser.add_argument('--no-label-refinement', action="store_true")
+    parser.add_argument('--no-s2ships', action="store_true")
+
     parser.add_argument('--learning-rate', type=float, default=1e-3)
     parser.add_argument('--pos-weight', type=float, default=1, help="positional weight for the floating object class, large values counteract")
 
@@ -39,12 +43,21 @@ def main(args):
                               weight_decay=args.weight_decay)
 
     marinedebris_datamodule = MarineDebrisDataModule(data_root=args.data_path,
-                                   image_size=args.image_size,
-                                   workers=args.workers,
-                                   batch_size=args.batch_size)
+                                        image_size=args.image_size,
+                                        workers=args.workers,
+                                        batch_size=args.batch_size,
+                                        no_label_refinement=args.no_label_refinement,
+                                        no_s2ships=args.no_s2ships)
 
     ts = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
-    run_name = f"{args.model}_{ts}"
+
+    run_name = f"{args.model}"
+    if args.no_label_refinement:
+        run_name += "_no_label_refinement"
+    if args.no_s2ships:
+        run_name += "_no_s2ships"
+    run_name += f"_{ts}"
+
     logger = WandbLogger(project="flobs-segm", name=run_name, log_model=True, save_code=True)
     #logger.watch(model)
 

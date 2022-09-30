@@ -44,7 +44,7 @@ class RefinedRegionsQualitativeCallback(pl.Callback):
         for idx, (x,id) in enumerate(self.dataset):
             stat = dict(id=id)
 
-            image = torch.from_numpy(x).unsqueeze(0).to(model.device)
+            image = torch.from_numpy(x).unsqueeze(0).to(model.device).float()
             y_prob = torch.sigmoid(model(image).squeeze())
             pred = y_prob > model.threshold
 
