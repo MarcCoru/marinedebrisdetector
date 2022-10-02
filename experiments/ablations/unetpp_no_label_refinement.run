@@ -10,4 +10,4 @@
 #SBATCH --gres=gpu:1
 
 cd /home/russwurm/marinedetector
-/home/russwurm/marinedetector/venv/bin/python train_segmentation.py --data-path /scratch/izar/russwurm/marinedebris --model unet++ --batch-size 256 --no-label-refinement
+/home/russwurm/marinedetector/venv/bin/python train_segmentation.py --data-path /scratch/izar/russwurm/marinedebris --model unet++ --batch-size 256 --no-label-refinement  --project flobs-segm-ablation

@@ -8,8 +8,13 @@ from metrics import get_loss, calculate_metrics
 from sklearn.metrics import precision_recall_curve
 
 class SegmentationModel(pl.LightningModule):
-    def __init__(self, model, learning_rate=1e-3, weight_decay=1e-8):
+    def __init__(self, args):
         super().__init__()
+
+        model = args.model
+        learning_rate = args.learning_rate
+        weight_decay = args.weight_decay
+
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
 
@@ -85,8 +90,14 @@ class SegmentationModel(pl.LightningModule):
         y_scores = np.hstack([o["y_scores"] for o in outputs])
         loss = np.hstack([o["loss"] for o in outputs])
 
-        metrics = calculate_metrics(y_true, y_scores, self.threshold)
-        return
+        y_true = torch.from_numpy(y_true)
+        y_scores = torch.from_numpy(y_scores)
+
+        metrics = calculate_metrics(y_true, y_scores, self.threshold.cpu())
+        metrics["loss"] = loss.mean()
+
+        metrics = {"test_"+k:v for k,v in metrics.items()}
+        self.log_dict(metrics)
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         return
