@@ -58,7 +58,7 @@ def main(args):
     #logger.watch(model)
 
     checkpointer = pl.callbacks.ModelCheckpoint(
-        dirpath=os.path.join(os.getcwd(), "checkpoints", run_name),
+        dirpath=os.path.join(os.getcwd(), "checkpoints", args.project, run_name),
         filename="{epoch}-{val_loss:.2f}",
         save_top_k=1,
         monitor="val_loss",
