@@ -13,6 +13,7 @@ from model.segmentation_model import SegmentationModel
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data-path', type=str, default="/data/marinedebris")
+    parser.add_argument('--project', type=str, default="flobs-segm")
     parser.add_argument('--model', type=str, default="unet")
     parser.add_argument('--resume-from', type=str, default=None)
     parser.add_argument('--batch-size', type=int, default=64)
@@ -28,6 +29,7 @@ def parse_args():
     # ablations
     parser.add_argument('--no-label-refinement', action="store_true")
     parser.add_argument('--no-s2ships', action="store_true")
+    parser.add_argument('--no-marida', action="store_true")
 
     parser.add_argument('--learning-rate', type=float, default=1e-3)
     parser.add_argument('--pos-weight', type=float, default=1, help="positional weight for the floating object class, large values counteract")
@@ -38,27 +40,21 @@ def parse_args():
 
 def main(args):
 
-    model = SegmentationModel(args.model,
-                              learning_rate=args.learning_rate,
-                              weight_decay=args.weight_decay)
+    model = SegmentationModel(args)
 
     marinedebris_datamodule = MarineDebrisDataModule(data_root=args.data_path,
                                         image_size=args.image_size,
                                         workers=args.workers,
                                         batch_size=args.batch_size,
                                         no_label_refinement=args.no_label_refinement,
-                                        no_s2ships=args.no_s2ships)
+                                        no_s2ships=args.no_s2ships,
+                                        no_marida=args.no_marida)
 
     ts = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
 
-    run_name = f"{args.model}"
-    if args.no_label_refinement:
-        run_name += "_no_label_refinement"
-    if args.no_s2ships:
-        run_name += "_no_s2ships"
-    run_name += f"_{ts}"
+    run_name = f"{args.model}_{ts}"
 
-    logger = WandbLogger(project="flobs-segm", name=run_name, log_model=True, save_code=True)
+    logger = WandbLogger(project=args.project, name=run_name, log_model=True, save_code=True)
     #logger.watch(model)
 
     checkpointer = pl.callbacks.ModelCheckpoint(
