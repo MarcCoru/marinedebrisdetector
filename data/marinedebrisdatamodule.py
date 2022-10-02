@@ -6,6 +6,7 @@ from data.floatingobjects import FloatingSeaObjectDataset
 from data.s2ships import S2Ships
 from data.refined_floatingobjects import RefinedFlobsDataset, RefinedFlobsQualitativeDataset
 from data.plastic_litter_project import PLPDataset
+from data.marida import MaridaDataset
 
 class MarineDebrisDataModule(pl.LightningDataModule):
     def __init__(self, data_root: str = "/data/marinedebris",
@@ -14,7 +15,9 @@ class MarineDebrisDataModule(pl.LightningDataModule):
                  image_size: int = 64,
                  workers: int = 16,
                  no_label_refinement=False,
-                 no_s2ships=False):
+                 no_s2ships=False,
+                 no_marida=False):
+
         super().__init__()
         self.data_root = data_root
         self.batch_size = batch_size
@@ -26,11 +29,13 @@ class MarineDebrisDataModule(pl.LightningDataModule):
         #ablations
         self.no_label_refinement = no_label_refinement
         self.no_s2ships = no_s2ships
+        self.no_marida = no_marida
 
         self.flobs_path = os.path.join(self.data_root, "floatingobjects")
         self.refined_flobs_path = os.path.join(self.data_root, "marinedebris_refined")
         self.s2ships_path = os.path.join(self.data_root, "S2SHIPS")
         self.plp_path = os.path.join(self.data_root, "PLP")
+        self.maridapath = os.path.join(self.data_root, "MARIDA")
 
     def setup(self, stage: str):
         train_transform = get_transform("train", intensity=self.augmentation_intensity, cropsize=self.image_size)
@@ -39,7 +44,15 @@ class MarineDebrisDataModule(pl.LightningDataModule):
                                                  transform=train_transform, refine_labels=not self.no_label_refinement,
                                                  output_size=image_load_size, cache_to_npy=True)
         shipsdataset = S2Ships(self.s2ships_path, imagesize=image_load_size, transform=train_transform)
-        self.train_dataset =  flobs_dataset if self.no_s2ships else ConcatDataset([flobs_dataset, shipsdataset])
+        maridadataset = MaridaDataset(self.maridapath, imagesize = image_load_size, data_transform=train_transform)
+
+        train_datasets = [flobs_dataset]
+        if not self.no_s2ships:
+            train_datasets += [shipsdataset]
+        if not self.no_marida:
+            train_datasets += [maridadataset]
+
+        self.train_dataset =  ConcatDataset(train_datasets)
         self.valid_dataset = RefinedFlobsDataset(root=self.refined_flobs_path, fold="val", shuffle=True)
         self.test_dataset = RefinedFlobsDataset(root=self.refined_flobs_path, fold="test", shuffle=True)
 
