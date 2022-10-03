@@ -32,7 +32,7 @@ def remove_lines_outside_bounds(lines, imagebounds):
 
     return lines.loc[lines.geometry.apply(within_image)]
 
-def read_tif_image(imagefile, window):
+def read_tif_image(imagefile, window=None):
     # loading of the image
     with rio.open(imagefile) as src:
         image = src.read(window=window)
@@ -43,7 +43,10 @@ def read_tif_image(imagefile, window):
         if is_l1cimage:  # is L1C Sentinel 2 data
             image = image[[L1CBANDS.index(b) for b in L2ABANDS]]
 
-        win_transform = src.window_transform(window)
+        if window is not None:
+            win_transform = src.window_transform(window)
+        else:
+            win_transform = src.transform
     return image, win_transform
 
 def get_window(line, output_size, transform):
