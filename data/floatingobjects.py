@@ -207,7 +207,7 @@ class FloatingSeaObjectRegionDataset(torch.utils.data.Dataset):
         mask, win_transform = read_tif_image(self.maskfile, window)
 
         # pad image if at the border
-        image, mask = pad(image, mask, self.output_size)
+        image, mask = pad(image, mask[0], self.output_size)
 
         # to float
         image, mask = image.astype(float), mask.astype(float)
