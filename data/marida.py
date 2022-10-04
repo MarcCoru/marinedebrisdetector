@@ -191,8 +191,6 @@ if __name__ == '__main__':
     ds = MaridaDataset(path="/data/marinedebris/MARIDA", fold="test")
     print(len(ds))
 
-    import matplotlib
-    matplotlib.use('TkAgg')
     import matplotlib.pyplot as plt
     from visualization import rgb
 

@@ -14,11 +14,7 @@ from multiprocessing import Pool
 from tqdm.contrib.concurrent import process_map
 from shapely.geometry import Polygon
 
-import matplotlib
-matplotlib.use('QtAgg')
-import matplotlib.pyplot as plt
 from visualization import rgb
-from matplotlib import cm, colors
 import numpy as np
 import pandas as pd
 
