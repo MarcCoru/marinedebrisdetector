@@ -20,7 +20,8 @@ val_regions = ["lagos_20190101",
                 "neworleans_20200202",
                 "venice_20180630"]
 
-test_regions = ["accra_20181031"]
+test_regions = ["accra_20181031",
+                "durban_20190424"]
 
 class RefinedFlobsRegionDataset(Dataset):
 

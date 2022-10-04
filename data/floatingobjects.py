@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 from data.utils import get_window, read_tif_image, pad, line_is_closed, \
     split_line_gdf_into_segments, remove_lines_outside_bounds
-from data.label_refinement import refine_masks
+from data.label_refinement import refine_masks_iterative
 
 L1CBANDS = ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B9", "B10", "B11", "B12"]
 L2ABANDS = ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B9", "B11", "B12"]
@@ -79,10 +79,12 @@ class FloatingSeaObjectRegionDataset(torch.utils.data.Dataset):
                  transform=None, hard_negative_mining=True,
                  refine_labels=True, cache_to_npy=True):
 
-        shapefile = os.path.join(root, region + ".shp")
+        maskpath = os.path.join(root, "masks")
+        os.makedirs(maskpath, exist_ok=True)
+        shapefile = os.path.join(root, "shapefiles", region + ".shp")
 
-        imagefile = os.path.join(root, region + ".tif")
-        imagefilel2a = os.path.join(root, region + "_l2a.tif")
+        imagefile = os.path.join(root, "scenes", region + ".tif")
+        imagefilel2a = os.path.join(root, "scenes", region + "_l2a.tif")
         if os.path.exists(imagefilel2a):
             imagefile = imagefilel2a # use l2afile if exists
 
@@ -97,6 +99,10 @@ class FloatingSeaObjectRegionDataset(torch.utils.data.Dataset):
         with rio.open(imagefile) as src:
             self.imagemeta = src.meta
             self.imagebounds = tuple(src.bounds)
+            self.geotransform = src.transform
+            self.height = src.height
+            self.width = src.width
+            profile = src.profile
 
         lines = gpd.read_file(shapefile)
         lines = lines.to_crs(self.imagemeta["crs"])
@@ -122,11 +128,30 @@ class FloatingSeaObjectRegionDataset(torch.utils.data.Dataset):
         # combine with polygons to rasterize
         self.rasterize_geometries = pd.concat([rasterize_lines, rasterize_polygons])
 
+        profile.update(
+            count=1,
+            dtype="uint8"
+        )
+        if refine_labels:
+            self.maskfile = os.path.join(maskpath, "refined", f"{region}.tif")
+        else:
+            self.maskfile = os.path.join(maskpath, "original", f"{region}.tif")
+        os.makedirs(os.path.dirname(self.maskfile), exist_ok=True)
+
+        if not os.path.exists(self.maskfile) and not self.refine_labels:
+            print("label refinement")
+            mask = features.rasterize(self.rasterize_geometries, all_touched=True,
+                                      transform=self.geotransform, out_shape=(self.height, self.width))
+
+            with rio.open(self.maskfile, "w", **profile) as dst:
+                dst.write(mask[None])
+
+        """
         if cache_to_npy:
             reflab_suffix = "_reflab" if refine_labels else ""
             self.npyfolder = os.path.join(root, f"npy_{output_size}"+reflab_suffix, region)
             os.makedirs(self.npyfolder, exist_ok=True)
-
+        """
 
 
     def sample_points_for_hard_negative_mining(self):
@@ -171,6 +196,38 @@ class FloatingSeaObjectRegionDataset(torch.utils.data.Dataset):
         return image, mask, str(id)
 
     def __getitem__(self, index):
+        line = self.lines.iloc[index]
+
+        window = get_window(line, output_size=self.output_size, transform=self.imagemeta["transform"])
+
+        image, win_transform = read_tif_image(self.imagefile, window)
+
+        #mask, win_transform = read_tif_image(self.maskfile, window)
+        with rio.open(self.maskfile, "r") as src:
+            if src.count > 1: # if multiple masks available (i.e., refined labels generated with different parameters in each band)
+                # pick a band randomly
+                mask = src.read(np.random.randint(1, src.count + 1), window=window)
+            else:
+                mask = src.read(1, window=window)
+
+        # pad image if at the border
+        image, mask = pad(image, mask, self.output_size)
+
+        # to float
+        image, mask = image.astype(float), mask.astype(float)
+
+        hard_negative_mining_suffix = "-hnm" if line["is_hnm"] else ""
+        id = f"{self.region}-{index}" + hard_negative_mining_suffix
+
+        image = np.nan_to_num(image)
+
+        if self.transform is not None:
+            image, mask = self.transform(image, mask)
+
+        return image, mask, id
+
+    """
+    def __getitem__OLD(self, index):
         if hasattr(self, 'npyfolder') and self.item_in_cache(index):
             image, mask, id = self.get_item_from_cache(index)
         else:
@@ -213,12 +270,8 @@ class FloatingSeaObjectRegionDataset(torch.utils.data.Dataset):
 
         image = np.nan_to_num(image)
 
-        if self.refine_labels:
-            if len(np.unique(mask)) > 1: # only if labels are present to be refined
-                mask = refine_masks(image, mask)
-
         return image, mask, id
-
+    """
 
 class FloatingSeaObjectDataset(torch.utils.data.ConcatDataset):
     def __init__(self, root, fold="train", **kwargs):

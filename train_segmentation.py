@@ -14,6 +14,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data-path', type=str, default="/data/marinedebris")
     parser.add_argument('--project', type=str, default="flobs-segm")
+    parser.add_argument('--run-name', type=str, default=None)
     parser.add_argument('--model', type=str, default="unet")
     parser.add_argument('--resume-from', type=str, default=None)
     parser.add_argument('--batch-size', type=int, default=64)
@@ -26,7 +27,7 @@ def parse_args():
     parser.add_argument('--no-checkpoint', action="store_true")
     parser.add_argument('--max-epochs', type=int, default=100)
 
-    # ablations
+    # label-refinement
     parser.add_argument('--no-label-refinement', action="store_true")
     parser.add_argument('--no-s2ships', action="store_true")
     parser.add_argument('--no-marida', action="store_true")
@@ -50,15 +51,17 @@ def main(args):
                                         no_s2ships=args.no_s2ships,
                                         no_marida=args.no_marida)
 
-    ts = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
-
-    run_name = f"{args.model}_{ts}"
+    if args.run_name is None:
+        ts = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+        run_name = f"{args.model}_{ts}"
+    else:
+        run_name = args.run_name
 
     logger = WandbLogger(project=args.project, name=run_name, log_model=True, save_code=True)
     #logger.watch(model)
 
     checkpointer = pl.callbacks.ModelCheckpoint(
-        dirpath=os.path.join(os.getcwd(), "checkpoints", run_name),
+        dirpath=os.path.join(os.getcwd(), "checkpoints", args.project, run_name),
         filename="{epoch}-{val_loss:.2f}",
         save_top_k=1,
         monitor="val_loss",

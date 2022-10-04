@@ -6,3 +6,4 @@ wandb
 .ipynb_checkpoints
 notebooks
 *.out
+lightning_logs

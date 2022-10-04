@@ -9,18 +9,13 @@ import torch
 from PIL import Image
 import matplotlib
 
-matplotlib.use('TkAgg')
-import matplotlib.pyplot as plt
-from visualization import rgb
-from matplotlib import cm, colors
-import numpy as np
 import torch
 from visualization import rgb, fdi, ndvi
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--ckpt-folder', type=str, default="checkpoints/unet++_2022-10-02_16:01:23")
+    parser.add_argument('--ckpt-folder', type=str, default="checkpoints/flobs-segm/unet++_2022-10-03_04:00:27")
     parser.add_argument('--data-path', type=str, default="/data/marinedebris")
     parser.add_argument('--batch-size', type=int, default=64)
     parser.add_argument('--weight-decay', type=float, default=1e-12)
@@ -83,14 +78,14 @@ def write_qualitative(model, dataset, path):
         ax.axis("off")
         write_path = os.path.join(path, f"{id}_yscore.png")
         fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
-        print(f"writing {write_path}")
+        print(f"writing {os.path.abspath(write_path)}")
 
         fig, ax = plt.subplots()
         ax.imshow(y_score > model.threshold.numpy(), vmin=0, vmax=1, cmap="Reds")
         ax.axis("off")
         write_path = os.path.join(path, f"{id}_ypred.png")
         fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
-        print(f"writing {write_path}")
+        print(f"writing {os.path.abspath(write_path)}")
 
         norm = colors.Normalize(vmin=-0.5, vmax=0.5, clip=True)
         scmap = cm.ScalarMappable(norm=norm, cmap="viridis")
@@ -99,7 +94,7 @@ def write_qualitative(model, dataset, path):
         ax.axis("off")
         write_path = os.path.join(path, f"{id}_ndvi.png")
         fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
-        print(f"writing {write_path}")
+        print(f"writing {os.path.abspath(write_path)}")
 
         norm = colors.Normalize(vmin=-0.1, vmax=0.1, clip=True)
         scmap = cm.ScalarMappable(norm=norm, cmap="magma")
@@ -108,22 +103,22 @@ def write_qualitative(model, dataset, path):
         ax.axis("off")
         write_path = os.path.join(path, f"{id}_fdi.png")
         fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
-        print(f"writing {write_path}")
+        print(f"writing {os.path.abspath(write_path)}")
 
         fig, ax = plt.subplots()
         ax.imshow(rgb(x.squeeze(0).cpu().numpy()).transpose(1, 2, 0))
         ax.axis("off")
         write_path = os.path.join(path, f"{id}_rgb.png")
         fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
-        print(f"writing {write_path}")
+        print(f"writing {os.path.abspath(write_path)}")
 
         fig, ax = plt.subplots()
         ax.imshow(rgb(x.squeeze(0).cpu().numpy()).transpose(1, 2, 0))
-        ax.contour(y_score, cmap="Reds", vmin=0, vmax=1, levels=4)
+        ax.contour(y_score, cmap="Reds", vmin=0, vmax=1, levels=8)
         ax.axis("off")
         write_path = os.path.join(path, f"{id}_yscore_overlay.png")
         fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
-        print(f"writing {write_path}")
+        print(f"writing {os.path.abspath(write_path)}")
 
 if __name__ == '__main__':
     main(parse_args())
