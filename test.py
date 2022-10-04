@@ -8,13 +8,17 @@ import pandas as pd
 import torch
 from PIL import Image
 import matplotlib
-
+import matplotlib.pyplot as plt
+from matplotlib import colors
+from matplotlib import cm
+from predictor import ScenePredictor
 import torch
 from visualization import rgb, fdi, ndvi
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument('--comparison', type=str, default="ours", choices=["ours", "mifdal"])
     parser.add_argument('--ckpt-folder', type=str, default="checkpoints/flobs-segm/unet++_2022-10-03_04:00:27")
     parser.add_argument('--data-path', type=str, default="/data/marinedebris")
     parser.add_argument('--batch-size', type=int, default=64)
@@ -29,9 +33,33 @@ def parse_args():
 
 def main(args):
 
-    ckpt_files = [f for f in os.listdir(args.ckpt_folder) if f.endswith(".ckpt") and f != "last.ckpt"]
-    ckpt_file = ckpt_files[0]
-    model = SegmentationModel.load_from_checkpoint(checkpoint_path=os.path.join(args.ckpt_folder, ckpt_file))
+    if args.comparison == "ours":
+        ckpt_files = [f for f in os.listdir(args.ckpt_folder) if f.endswith(".ckpt") and f != "last.ckpt"]
+        ckpt_file = ckpt_files[0]
+        model = SegmentationModel.load_from_checkpoint(checkpoint_path=os.path.join(args.ckpt_folder, ckpt_file))
+    elif args.comparison == "mifdal":
+        from model.unet import UNet
+        unet_model = UNet(n_channels=12,
+                     n_classes=1,
+                     bilinear=False)
+
+        args.model = "unet"
+        args.learning_rate = 0.001
+        args.weight_decay = 1e-4
+        model = SegmentationModel(args)
+
+
+
+        """unet weights from 
+        https://drive.google.com/uc?export=download&id=1uZkaj7MPubCqCzSTTYS_57vbxKpgbOig"""
+        state_dict = torch.load("/data/marinedebris/comparison/unet-posweight1-lr001-bs160-ep50-aug1-seed0.pth.tar")[
+            "model_state_dict"]
+        unet_model.load_state_dict(state_dict)
+        #model.register_buffer("threshold", torch.tensor(0.5))
+
+        model.model = unet_model
+
+    model = model.eval()
 
     marinedebris_datamodule = MarineDebrisDataModule(data_root=args.data_path,
                                         image_size=args.image_size,
@@ -45,9 +73,19 @@ def main(args):
     model = model.eval()
     #model = TestTimeAugmentation_wapper(model)
 
+
     write_qualitative(model,
-                      dataset=marinedebris_datamodule.get_qualitative_test_dataset(),
-                      path=os.path.join(args.ckpt_folder, "qualitative"))
+                          dataset=marinedebris_datamodule.get_qualitative_test_dataset(),
+                          path=os.path.join(args.ckpt_folder, "qualitative"))
+
+
+    predictor = ScenePredictor(device="cuda")
+    for ds in marinedebris_datamodule.get_qualitative_test_dataset().datasets:
+        path = ds.tifffile
+        predpath = os.path.join(args.ckpt_folder, "test_scenes", os.path.basename(path))
+        os.makedirs(os.path.dirname(predpath), exist_ok=True)
+        print(f"writing {os.path.abspath(predpath)}")
+        predictor.predict(TestTimeAugmentation_wapper(model), path, predpath)
 
 class TestTimeAugmentation_wapper(torch.nn.Module):
     def __init__(self, model):
@@ -69,7 +107,7 @@ class TestTimeAugmentation_wapper(torch.nn.Module):
 
 def write_qualitative(model, dataset, path):
     os.makedirs(path, exist_ok=True)
-    for image, id in dataset:
+    for image, mask, id in dataset:
         x = torch.from_numpy(image).float().unsqueeze(0)
         y_score = torch.sigmoid(model(x)).squeeze().detach().numpy()
 
@@ -117,6 +155,21 @@ def write_qualitative(model, dataset, path):
         ax.contour(y_score, cmap="Reds", vmin=0, vmax=1, levels=8)
         ax.axis("off")
         write_path = os.path.join(path, f"{id}_yscore_overlay.png")
+        fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
+        print(f"writing {os.path.abspath(write_path)}")
+
+        fig, ax = plt.subplots()
+        ax.imshow(mask, vmin=0, vmax=1, cmap="Reds", interpolation="none")
+        ax.axis("off")
+        write_path = os.path.join(path, f"{id}_mask.png")
+        fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
+        print(f"writing {os.path.abspath(write_path)}")
+
+        fig, ax = plt.subplots()
+        ax.imshow(rgb(x.squeeze(0).cpu().numpy()).transpose(1, 2, 0))
+        ax.contour(mask, cmap="Reds", vmin=0, vmax=1, levels=8)
+        ax.axis("off")
+        write_path = os.path.join(path, f"{id}_mask_overlay.png")
         fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
         print(f"writing {os.path.abspath(write_path)}")
 

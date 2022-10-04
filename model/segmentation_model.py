@@ -54,7 +54,7 @@ class SegmentationModel(pl.LightningModule):
         logits = logits.squeeze(1)[:, h, w] # keep only center
         loss = self.criterion(logits, target=masks.float())
         y_scores = torch.sigmoid(logits)
-        return {"y_scores":y_scores.cpu().detach(), "y_true":masks.cpu().detach(), "loss":loss.cpu().numpy()}
+        return {"y_scores":y_scores.cpu().detach(), "y_true":masks.cpu().detach(), "loss":loss.cpu().numpy(), "id":id}
 
     def validation_step(self, batch, batch_idx):
         return self.common_step(batch, batch_idx)
@@ -89,6 +89,8 @@ class SegmentationModel(pl.LightningModule):
         y_true = np.hstack([o["y_true"] for o in outputs])
         y_scores = np.hstack([o["y_scores"] for o in outputs])
         loss = np.hstack([o["loss"] for o in outputs])
+        ids = np.hstack([o["id"] for o in outputs])
+        regions = [id.split("-")[0] for id in ids]
 
         y_true = torch.from_numpy(y_true)
         y_scores = torch.from_numpy(y_scores)
@@ -98,6 +100,12 @@ class SegmentationModel(pl.LightningModule):
 
         metrics = {"test_"+k:v for k,v in metrics.items()}
         self.log_dict(metrics)
+
+        for r in np.unique(regions):
+            mask = np.array([r_ == r for r_ in regions])
+            metrics = calculate_metrics(y_true[mask], y_scores[mask], self.threshold.cpu())
+            metrics = {f"test_{r}_" + k: v for k, v in metrics.items()}
+            self.log_dict(metrics)
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         return

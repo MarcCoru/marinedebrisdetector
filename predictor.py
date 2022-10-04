@@ -10,7 +10,7 @@ from transforms import get_transform
 from scipy.ndimage.filters import gaussian_filter
 from data import L2ABANDS, L1CBANDS
 
-class PythonPredictor():
+class ScenePredictor():
 
     #def __init__(self, modelname, modelpath, image_size=(480,480), device="cpu", offset=64, use_test_aug=2, add_fdi_ndvi=False):
     def __init__(self, image_size=(480,480), device="cpu", offset=64, use_test_aug=2, add_fdi_ndvi=False):
@@ -44,6 +44,7 @@ class PythonPredictor():
         with rasterio.open(predimage, "w+", **meta) as dst:
 
             for r, c in tqdm(product(rows, cols), total=len(rows) * len(cols), leave=False):
+                H, W = self.image_size
 
                 window = image_window.intersection(
                     Window(c-self.offset, r-self.offset, W+self.offset, H+self.offset))
@@ -55,6 +56,16 @@ class PythonPredictor():
                 if (image.shape[0] == 13):
                     image = image[[L1CBANDS.index(b) for b in L2ABANDS]]
 
+                # pad with zeros
+                H, W = self.image_size
+                H, W = H + self.offset*2, W + self.offset*2
+
+                bands, h, w = image.shape
+                dh = (H - h) / 2
+                dw = (W - w) / 2
+                image = np.pad(image, [(0, 0), (int(np.ceil(dh)), int(np.floor(dh))),
+                                       (int(np.ceil(dw)), int(np.floor(dw)))])
+
                 # to torch + normalize
                 image = torch.from_numpy(image.astype(np.float32))
                 image = image.to(self.device) * 1e-4
@@ -62,20 +73,15 @@ class PythonPredictor():
                 # predict
                 with torch.no_grad():
                     x = image.unsqueeze(0)
-                    #import pdb; pdb.set_trace()
                     y_logits = torch.sigmoid(self.model(x).squeeze(0))
-                    if self.use_test_aug > 0:
-                        y_logits += torch.sigmoid(torch.fliplr(self.model(torch.fliplr(x)))).squeeze(0) # fliplr)
-                        y_logits += torch.sigmoid(torch.flipud(self.model(torch.flipud(x)))).squeeze(0) # flipud
-                        if self.use_test_aug > 1:
-                            for rot in [1, 2, 3]: # 90, 180, 270 degrees
-                                y_logits += torch.sigmoid(torch.rot90(self.model(torch.rot90(x, rot, [2, 3])),-rot,[2,3]).squeeze(0))
-                            y_logits /= 6
-                        else:
-                            y_logits /= 3
 
                     y_score = y_logits.cpu().detach().numpy()[0]
                     #y_score = y_score[:,self.offset:-self.offset, self.offset:-self.offset]
+
+                # unpad
+                y_score=y_score[int(np.ceil(dh)):y_score.shape[0]-int(np.floor(dh)), int(np.ceil(dw)):y_score.shape[1]-int(np.floor(dw))]
+                assert y_score.shape[0] == window.height, "unpadding size mismatch"
+                assert y_score.shape[1] == window.width, "unpadding size mismatch"
 
                 data = dst.read(window=window)[0] / 255
                 overlap = data > 0
