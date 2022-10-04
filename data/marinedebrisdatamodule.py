@@ -56,11 +56,11 @@ class MarineDebrisDataModule(pl.LightningDataModule):
         self.valid_dataset = RefinedFlobsDataset(root=self.refined_flobs_path, fold="val", shuffle=True)
         self.test_dataset = RefinedFlobsDataset(root=self.refined_flobs_path, fold="test", shuffle=True)
 
-    def get_qualitative_validation_dataset(self):
-        return RefinedFlobsQualitativeDataset(root=self.refined_flobs_path, fold="val", output_size=256)
+    def get_qualitative_validation_dataset(self, output_size=256):
+        return RefinedFlobsQualitativeDataset(root=self.refined_flobs_path, fold="val", output_size=output_size)
 
-    def get_qualitative_test_dataset(self):
-        return RefinedFlobsQualitativeDataset(root=self.refined_flobs_path, fold="test", output_size=256)
+    def get_qualitative_test_dataset(self, output_size=256):
+        return RefinedFlobsQualitativeDataset(root=self.refined_flobs_path, fold="test", output_size=output_size)
 
     def get_plp_dataset(self, year):
         return PLPDataset(root=self.plp_path, year=year, output_size=32)
