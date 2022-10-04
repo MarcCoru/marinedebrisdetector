@@ -2,6 +2,7 @@ import numpy as np
 import rasterio as rio
 from shapely.geometry import LineString, Polygon
 import geopandas as gpd
+import shapely
 
 L1CBANDS = ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B9", "B10", "B11", "B12"]
 L2ABANDS = ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B9", "B11", "B12"]
@@ -34,7 +35,7 @@ def remove_lines_outside_bounds(lines, imagebounds):
 
 def read_tif_image(imagefile, window=None):
     # loading of the image
-    with rio.open(imagefile) as src:
+    with rio.open(imagefile, "r") as src:
         image = src.read(window=window)
 
         is_l1cimage = src.meta["count"] == 13  # flag if l1c (top-of-atm) or l2a (bottom of atmosphere) image
@@ -49,8 +50,11 @@ def read_tif_image(imagefile, window=None):
             win_transform = src.transform
     return image, win_transform
 
-def get_window(line, output_size, transform):
-    left, bottom, right, top = line.geometry.bounds
+def get_window(geometry, output_size, transform):
+    if isinstance(geometry, shapely.geometry.base.BaseGeometry):
+        left, bottom, right, top = geometry.bounds
+    else: # geopandas series
+        left, bottom, right, top = geometry.geometry.bounds
 
     pixel_size = transform.a
 

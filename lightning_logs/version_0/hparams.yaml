@@ -1,0 +1,3 @@
+learning_rate: 0.001
+model: unet++
+weight_decay: 1.0e-12

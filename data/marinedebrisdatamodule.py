@@ -26,7 +26,7 @@ class MarineDebrisDataModule(pl.LightningDataModule):
         self.image_load_size = int(self.image_size * 1.2)
         self.workers = workers
 
-        #ablations
+        #label-refinement
         self.no_label_refinement = no_label_refinement
         self.no_s2ships = no_s2ships
         self.no_marida = no_marida

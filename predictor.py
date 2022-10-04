@@ -100,8 +100,8 @@ def main(args):
 
     device = "cuda"
     predictor = PythonPredictor(image_size=(480,480), device=device, add_fdi_ndvi=False)
-    model = SegmentationModel()
-    model.load_state_dict(torch.load(args.checkpoint_path, map_location=device)["state_dict"])
+    model = SegmentationModel.load_from_checkpoint(args.checkpoint_path)
+    #model.load_state_dict(torch.load(args.checkpoint_path, map_location=device)["state_dict"])
     #predictor = PythonPredictor(args.model, args.snapshot_path, args.image_size, device="cuda", add_fdi_ndvi=args.add_fdi_ndvi)
 
     predictor.predict(model.model, args.image_path, args.prediction_path)
@@ -112,7 +112,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--image-path', type=str, default="/data/marinedebris/durban/durban_20190424.tif")
     parser.add_argument('--prediction-path', type=str, default="checkpoints/unet/durban.tif")
-    parser.add_argument('--checkpoint-path', type=str, default="checkpoints/unet/epoch=74-val_loss=0.08.ckpt")
+    parser.add_argument('--checkpoint-path', type=str, default="checkpoints/flobs-segm-weight-decay/wde-12/epoch=54-val_loss=0.52.ckpt")
     parser.add_argument('--image-size', type=int, default=128)
     parser.add_argument('--model', type=str, default="unet")
     parser.add_argument('--seed', type=int, default=None)

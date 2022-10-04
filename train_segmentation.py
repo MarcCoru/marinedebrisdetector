@@ -27,7 +27,7 @@ def parse_args():
     parser.add_argument('--no-checkpoint', action="store_true")
     parser.add_argument('--max-epochs', type=int, default=100)
 
-    # ablations
+    # label-refinement
     parser.add_argument('--no-label-refinement', action="store_true")
     parser.add_argument('--no-s2ships', action="store_true")
     parser.add_argument('--no-marida', action="store_true")

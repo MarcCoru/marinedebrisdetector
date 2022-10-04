@@ -9,11 +9,6 @@ import torch
 from PIL import Image
 import matplotlib
 
-matplotlib.use('TkAgg')
-import matplotlib.pyplot as plt
-from visualization import rgb
-from matplotlib import cm, colors
-import numpy as np
 import torch
 from visualization import rgb, fdi, ndvi
 
