@@ -37,6 +37,10 @@ def main():
         for idx in tqdm(idxs):
             img, mask, id = train_dataset[idx]
             x,y = extract_features(img, mask, N_pts=N_pts)
+            if x is None:
+                continue
+            if y is None:
+                continue
             X.append(x)
             Y.append(y)
             ids.append(id)
@@ -103,9 +107,12 @@ def extract_features(img, mask, N_pts=5):
         target_pos = None
 
     x_neg, y_neg = np.where(~mask.numpy().astype(bool))
-    idxs = np.random.RandomState(0).randint(0,len(x_neg), size=N_pts)
-    v_neg = image_features[:,x_neg[idxs],y_neg[idxs]].T
-    target_neg = np.zeros(v_neg.shape[0])
+    if len(x_neg) > 0:
+        idxs = np.random.RandomState(0).randint(0,len(x_neg), size=N_pts)
+        v_neg = image_features[:,x_neg[idxs],y_neg[idxs]].T
+        target_neg = np.zeros(v_neg.shape[0])
+    else:
+        return None, None
 
     if v_pos is not None:
         feat = np.vstack([v_pos, v_neg])
