@@ -14,7 +14,9 @@ from matplotlib import cm
 from predictor import ScenePredictor
 import torch
 from visualization import rgb, fdi, ndvi
+from model.mifdal_model import load_mifdal_model
 
+pl.seed_everything(0)
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -38,26 +40,9 @@ def main(args):
         ckpt_file = ckpt_files[0]
         model = SegmentationModel.load_from_checkpoint(checkpoint_path=os.path.join(args.ckpt_folder, ckpt_file))
     elif args.comparison == "mifdal":
-        from model.unet import UNet
-        unet_model = UNet(n_channels=12,
-                     n_classes=1,
-                     bilinear=False)
-
-        args.model = "unet"
-        args.learning_rate = 0.001
-        args.weight_decay = 1e-4
-        model = SegmentationModel(args)
-
-
-
-        """unet weights from 
-        https://drive.google.com/uc?export=download&id=1uZkaj7MPubCqCzSTTYS_57vbxKpgbOig"""
-        state_dict = torch.load("/data/marinedebris/comparison/unet-posweight1-lr001-bs160-ep50-aug1-seed0.pth.tar")[
-            "model_state_dict"]
-        unet_model.load_state_dict(state_dict)
-        #model.register_buffer("threshold", torch.tensor(0.5))
-
-        model.model = unet_model
+        model = load_mifdal_model()
+    else:
+        raise ValueError()
 
     model = model.eval()
 
@@ -71,8 +56,17 @@ def main(args):
     trainer.test(model, marinedebris_datamodule)
 
     model = model.eval()
-    #model = TestTimeAugmentation_wapper(model)
+    model = TestTimeAugmentation_wapper(model)
 
+    write_qualitative(model,
+              dataset=marinedebris_datamodule.get_plp_dataset(2022, output_size=64),
+              path=os.path.join(args.ckpt_folder, "plp2022"),
+              cut_border=16)
+
+    write_qualitative(model,
+              dataset=marinedebris_datamodule.get_plp_dataset(2021, output_size=64),
+              path=os.path.join(args.ckpt_folder, "plp2021"),
+              cut_border=16)
 
     write_qualitative(model,
                           dataset=marinedebris_datamodule.get_qualitative_test_dataset(),
@@ -105,73 +99,89 @@ class TestTimeAugmentation_wapper(torch.nn.Module):
 
         return y_logits
 
-def write_qualitative(model, dataset, path):
+def write_plp(model, dataset, path):
     os.makedirs(path, exist_ok=True)
     for image, mask, id in dataset:
         x = torch.from_numpy(image).float().unsqueeze(0)
         y_score = torch.sigmoid(model(x)).squeeze().detach().numpy()
 
-        fig, ax = plt.subplots()
-        ax.imshow(y_score, vmin=0, vmax=1, cmap="Reds")
-        ax.axis("off")
-        write_path = os.path.join(path, f"{id}_yscore.png")
-        fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
-        print(f"writing {os.path.abspath(write_path)}")
+        write_predictions(model, y_score, x, path, mask, id)
 
-        fig, ax = plt.subplots()
-        ax.imshow(y_score > model.threshold.numpy(), vmin=0, vmax=1, cmap="Reds")
-        ax.axis("off")
-        write_path = os.path.join(path, f"{id}_ypred.png")
-        fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
-        print(f"writing {os.path.abspath(write_path)}")
+def write_qualitative(model, dataset, path, cut_border=0):
+    os.makedirs(path, exist_ok=True)
+    for image, mask, id in dataset:
+        x = torch.from_numpy(image).float().unsqueeze(0)
+        y_score = torch.sigmoid(model(x)).squeeze().detach().numpy()
 
-        norm = colors.Normalize(vmin=-0.5, vmax=0.5, clip=True)
-        scmap = cm.ScalarMappable(norm=norm, cmap="viridis")
-        fig, ax = plt.subplots()
-        ax.imshow(scmap.to_rgba(ndvi(x.squeeze(0)).cpu()))
-        ax.axis("off")
-        write_path = os.path.join(path, f"{id}_ndvi.png")
-        fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
-        print(f"writing {os.path.abspath(write_path)}")
+        if cut_border > 0:
+            y_score = y_score[cut_border:-cut_border, cut_border:-cut_border]
+            x = x[:,:,cut_border:-cut_border,cut_border:-cut_border]
+            mask = mask[cut_border:-cut_border, cut_border:-cut_border]
 
-        norm = colors.Normalize(vmin=-0.1, vmax=0.1, clip=True)
-        scmap = cm.ScalarMappable(norm=norm, cmap="magma")
-        fig, ax = plt.subplots()
-        ax.imshow(scmap.to_rgba(fdi(x.squeeze(0)).cpu()))
-        ax.axis("off")
-        write_path = os.path.join(path, f"{id}_fdi.png")
-        fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
-        print(f"writing {os.path.abspath(write_path)}")
+        write_predictions(model, y_score, x, path, mask, id)
 
-        fig, ax = plt.subplots()
-        ax.imshow(rgb(x.squeeze(0).cpu().numpy()).transpose(1, 2, 0))
-        ax.axis("off")
-        write_path = os.path.join(path, f"{id}_rgb.png")
-        fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
-        print(f"writing {os.path.abspath(write_path)}")
+def write_predictions(model, y_score, x, path, mask, id):
+    fig, ax = plt.subplots()
+    ax.imshow(y_score, vmin=0, vmax=1, cmap="Reds")
+    ax.axis("off")
+    write_path = os.path.join(path, f"{id}_yscore.png")
+    fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
+    print(f"writing {os.path.abspath(write_path)}")
 
-        fig, ax = plt.subplots()
-        ax.imshow(rgb(x.squeeze(0).cpu().numpy()).transpose(1, 2, 0))
-        ax.contour(y_score, cmap="Reds", vmin=0, vmax=1, levels=8)
-        ax.axis("off")
-        write_path = os.path.join(path, f"{id}_yscore_overlay.png")
-        fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
-        print(f"writing {os.path.abspath(write_path)}")
+    fig, ax = plt.subplots()
+    ax.imshow(y_score > model.threshold.numpy(), vmin=0, vmax=1, cmap="Reds")
+    ax.axis("off")
+    write_path = os.path.join(path, f"{id}_ypred.png")
+    fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
+    print(f"writing {os.path.abspath(write_path)}")
 
-        fig, ax = plt.subplots()
-        ax.imshow(mask, vmin=0, vmax=1, cmap="Reds", interpolation="none")
-        ax.axis("off")
-        write_path = os.path.join(path, f"{id}_mask.png")
-        fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
-        print(f"writing {os.path.abspath(write_path)}")
+    norm = colors.Normalize(vmin=-0.5, vmax=0.5, clip=True)
+    scmap = cm.ScalarMappable(norm=norm, cmap="viridis")
+    fig, ax = plt.subplots()
+    ax.imshow(scmap.to_rgba(ndvi(x.squeeze(0)).cpu()))
+    ax.axis("off")
+    write_path = os.path.join(path, f"{id}_ndvi.png")
+    fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
+    print(f"writing {os.path.abspath(write_path)}")
 
-        fig, ax = plt.subplots()
-        ax.imshow(rgb(x.squeeze(0).cpu().numpy()).transpose(1, 2, 0))
-        ax.contour(mask, cmap="Reds", vmin=0, vmax=1, levels=8)
-        ax.axis("off")
-        write_path = os.path.join(path, f"{id}_mask_overlay.png")
-        fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
-        print(f"writing {os.path.abspath(write_path)}")
+    norm = colors.Normalize(vmin=-0.1, vmax=0.1, clip=True)
+    scmap = cm.ScalarMappable(norm=norm, cmap="magma")
+    fig, ax = plt.subplots()
+    ax.imshow(scmap.to_rgba(fdi(x.squeeze(0)).cpu()))
+    ax.axis("off")
+    write_path = os.path.join(path, f"{id}_fdi.png")
+    fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
+    print(f"writing {os.path.abspath(write_path)}")
+
+    fig, ax = plt.subplots()
+    ax.imshow(rgb(x.squeeze(0).cpu().numpy()).transpose(1, 2, 0))
+    ax.axis("off")
+    write_path = os.path.join(path, f"{id}_rgb.png")
+    fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
+    print(f"writing {os.path.abspath(write_path)}")
+
+    fig, ax = plt.subplots()
+    ax.imshow(rgb(x.squeeze(0).cpu().numpy()).transpose(1, 2, 0))
+    ax.contour(y_score, cmap="Reds", vmin=0, vmax=1, levels=8)
+    ax.axis("off")
+    write_path = os.path.join(path, f"{id}_yscore_overlay.png")
+    fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
+    print(f"writing {os.path.abspath(write_path)}")
+
+    fig, ax = plt.subplots()
+    ax.imshow(mask, vmin=0, vmax=1, cmap="Reds", interpolation="none")
+    ax.axis("off")
+    write_path = os.path.join(path, f"{id}_mask.png")
+    fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
+    print(f"writing {os.path.abspath(write_path)}")
+
+    fig, ax = plt.subplots()
+    ax.imshow(rgb(x.squeeze(0).cpu().numpy()).transpose(1, 2, 0))
+    ax.contour(mask, cmap="Reds", vmin=0, vmax=1, levels=8)
+    ax.axis("off")
+    write_path = os.path.join(path, f"{id}_mask_overlay.png")
+    fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
+    print(f"writing {os.path.abspath(write_path)}")
 
 if __name__ == '__main__':
     main(parse_args())

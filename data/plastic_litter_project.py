@@ -52,6 +52,8 @@ class PLPDataset(torch.utils.data.Dataset):
 
             arr = np.nan_to_num(arr)
 
+        arr = arr * 1e-4
+
         return arr, rasterized, date
 
 def center_crop(arr, image_size=128):

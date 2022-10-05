@@ -62,8 +62,8 @@ class MarineDebrisDataModule(pl.LightningDataModule):
     def get_qualitative_test_dataset(self, output_size=256):
         return RefinedFlobsQualitativeDataset(root=self.refined_flobs_path, fold="test", output_size=output_size)
 
-    def get_plp_dataset(self, year):
-        return PLPDataset(root=self.plp_path, year=year, output_size=32)
+    def get_plp_dataset(self, year, output_size=32):
+        return PLPDataset(root=self.plp_path, year=year, output_size=output_size)
 
 
     def train_dataloader(self):

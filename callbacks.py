@@ -86,7 +86,7 @@ class PLPCallback(pl.Callback):
             masks.append(mask)
             years.append(year)
 
-        images = torch.from_numpy(np.stack(images)).to(model.device) * 1e-4
+        images = torch.from_numpy(np.stack(images)).to(model.device)
         masks = torch.from_numpy(np.stack(masks)).to(model.device)
 
         y_probs = torch.sigmoid(model(images)).squeeze(1)

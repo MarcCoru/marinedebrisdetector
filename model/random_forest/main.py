@@ -1,20 +1,14 @@
+import sys
+sys.path.append("/home/marc/projects/marinedetector")
 
 from data.marinedebrisdatamodule import MarineDebrisDataModule
-from random_forest import random_forest
-import matplotlib.pyplot as plt
 from visualization import rgb
-import engineering_patches as eng
+import model.random_forest.engineering_patches as eng
 import numpy as np
-
 
 from functools import partial
 from tqdm import tqdm
-from random_forest import rf_classifier
 import os
-import joblib
-
-import matplotlib
-matplotlib.use("TkAgg")
 
 import skimage.color
 import skimage
