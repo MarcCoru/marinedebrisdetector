@@ -2,24 +2,193 @@ import sys
 sys.path.append("/home/marc/projects/marinedetector")
 
 from data.marinedebrisdatamodule import MarineDebrisDataModule
-from visualization import rgb
+from visualization import rgb, fdi, ndvi
 import model.random_forest.engineering_patches as eng
 import numpy as np
+from random_forest import rf_classifier
 
 from functools import partial
 from tqdm import tqdm
 import os
 
+import matplotlib
+import matplotlib.pyplot as plt
+matplotlib.use("TkAgg")
+
 import skimage.color
 import skimage
 from skimage import feature
+from sklearn.metrics import classification_report, precision_recall_curve
+import torch
+from metrics import calculate_metrics
 
+import matplotlib.pyplot as plt
+from matplotlib import colors
+from matplotlib import cm
 
 def main():
+    root = "/data/marinedebris/results/kikaki/randomforest"
+
+
     dm = MarineDebrisDataModule("/data/marinedebris", no_label_refinement=True)
     dm.setup("fit")
 
-    root = "/data/marinedebris/randomforest"
+    extract_and_save_features(root, dm)
+
+    # TRAIN
+    f = np.load(os.path.join(root, "train.npz"))
+    X = f["X"]
+    y = f["y"]
+
+    rf_classifier.fit(X, y)
+
+    # VAL
+    f = np.load(os.path.join(root, "val.npz"))
+    X = f["X"]
+    y = f["y"]
+
+    yscore = rf_classifier.predict_proba(X)[:, 1]
+    precision, recall, thresholds = precision_recall_curve(y, yscore)
+    ix = np.abs(precision - recall).argmin()
+    optimal_threshold = thresholds[ix]
+
+    print(f"optimal threshold according to validation set is {optimal_threshold:.3f}")
+
+    # TEST
+    f = np.load(os.path.join(root, "test.npz"))
+    X = f["X"]
+    y = f["y"]
+    id = f["id"]
+    region = np.array([i.split("-")[0] for i in id])
+    is_accra = region == "accra_20181031"
+
+    y_pred = rf_classifier.predict(X)
+    yscore = rf_classifier.predict_proba(X)[:,1]
+
+    print("combined")
+    print(classification_report(y, y_pred))
+
+    metrics = calculate_metrics(targets=y, scores=yscore, optimal_threshold=optimal_threshold)
+    for k, v in metrics.items():
+        print(f"{k}: {v:.3f}")
+
+
+    print("accra_20181031")
+    print(classification_report(y[is_accra], y_pred[is_accra]))
+
+    metrics = calculate_metrics(targets=y[is_accra], scores=yscore[is_accra], optimal_threshold=optimal_threshold)
+    for k, v in metrics.items():
+        print(f"{k}: {v:.3f}")
+
+    print("durban_20190424")
+    print(classification_report(y[~is_accra], y_pred[~is_accra]))
+
+    metrics = calculate_metrics(targets=y[~is_accra], scores=yscore[~is_accra], optimal_threshold=optimal_threshold)
+    for k, v in metrics.items():
+        print(f"{k}: {v:.3f}")
+
+    path = "/data/marinedebris/results/kikaki/randomforest/qualitative"
+    qual_test_dataset = dm.get_qualitative_test_dataset()
+    write_qualitative(rf_classifier, qual_test_dataset, path, optimal_threshold=optimal_threshold)
+
+    path = "/data/marinedebris/results/kikaki/randomforest/plp2021"
+    qual_test_dataset = dm.get_plp_dataset(2021, output_size=64)
+    write_qualitative(rf_classifier, qual_test_dataset, path, cut_border=16, optimal_threshold=optimal_threshold)
+
+    path = "/data/marinedebris/results/kikaki/randomforest/plp2022"
+    qual_test_dataset = dm.get_plp_dataset(2022, output_size=64)
+    write_qualitative(rf_classifier, qual_test_dataset, path, cut_border=16, optimal_threshold=optimal_threshold)
+def write_qualitative(rf_classifier, qual_test_dataset, path, cut_border=0, optimal_threshold=0.5):
+    os.makedirs(path, exist_ok=True)
+
+    for x, mask, id in qual_test_dataset:
+        feat = extract_feature_image(torch.from_numpy(x))
+
+        D, H, W = feat.shape
+        feat_flat = feat.reshape(D, H*W).T # HW x D
+        feat_flat = np.nan_to_num(feat_flat)
+        pred_flat = rf_classifier.predict_proba(feat_flat)[:,1]
+        y_score = pred_flat.reshape(H,W)
+
+        x = torch.from_numpy(x).unsqueeze(0)
+
+        if cut_border > 0:
+            y_score = y_score[cut_border:-cut_border, cut_border:-cut_border]
+            x = x[:,:,cut_border:-cut_border,cut_border:-cut_border]
+            mask = mask[cut_border:-cut_border, cut_border:-cut_border]
+
+        threshold = optimal_threshold
+
+        fig, ax = plt.subplots()
+        ax.imshow(y_score, vmin=0, vmax=1, cmap="Reds")
+        ax.axis("off")
+        write_path = os.path.join(path, f"{id}_yscore.png")
+        fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
+        print(f"writing {os.path.abspath(write_path)}")
+
+        fig, ax = plt.subplots()
+        ax.imshow(y_score > threshold, vmin=0, vmax=1, cmap="Reds")
+        ax.axis("off")
+        write_path = os.path.join(path, f"{id}_ypred.png")
+        fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
+        print(f"writing {os.path.abspath(write_path)}")
+
+        norm = colors.Normalize(vmin=-0.5, vmax=0.5, clip=True)
+        scmap = cm.ScalarMappable(norm=norm, cmap="viridis")
+        fig, ax = plt.subplots()
+        ax.imshow(scmap.to_rgba(ndvi(x.squeeze(0)).cpu()))
+        ax.axis("off")
+        write_path = os.path.join(path, f"{id}_ndvi.png")
+        fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
+        print(f"writing {os.path.abspath(write_path)}")
+
+        norm = colors.Normalize(vmin=-0.1, vmax=0.1, clip=True)
+        scmap = cm.ScalarMappable(norm=norm, cmap="magma")
+        fig, ax = plt.subplots()
+        ax.imshow(scmap.to_rgba(fdi(x.squeeze(0)).cpu()))
+        ax.axis("off")
+        write_path = os.path.join(path, f"{id}_fdi.png")
+        fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
+        print(f"writing {os.path.abspath(write_path)}")
+
+        fig, ax = plt.subplots()
+        ax.imshow(rgb(x.squeeze(0).cpu().numpy()).transpose(1, 2, 0))
+        ax.axis("off")
+        write_path = os.path.join(path, f"{id}_rgb.png")
+        fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
+        print(f"writing {os.path.abspath(write_path)}")
+
+        fig, ax = plt.subplots()
+        ax.imshow(rgb(x.squeeze(0).cpu().numpy()).transpose(1, 2, 0))
+        ax.contour(y_score, cmap="Reds", vmin=0, vmax=1, levels=8)
+        ax.axis("off")
+        write_path = os.path.join(path, f"{id}_yscore_overlay.png")
+        fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
+        print(f"writing {os.path.abspath(write_path)}")
+
+        fig, ax = plt.subplots()
+        ax.imshow(mask, vmin=0, vmax=1, cmap="Reds", interpolation="none")
+        ax.axis("off")
+        write_path = os.path.join(path, f"{id}_mask.png")
+        fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
+        print(f"writing {os.path.abspath(write_path)}")
+
+        fig, ax = plt.subplots()
+        ax.imshow(rgb(x.squeeze(0).cpu().numpy()).transpose(1, 2, 0))
+        ax.contour(mask, cmap="Reds", vmin=0, vmax=1, levels=8)
+        ax.axis("off")
+        write_path = os.path.join(path, f"{id}_mask_overlay.png")
+        fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
+        print(f"writing {os.path.abspath(write_path)}")
+
+
+def extract_and_save_features(root, dm):
+    """
+    generates train.npz. val.npz and test.noz in root if they dont exist
+    takes several hours
+    """
+
+
     os.makedirs(root, exist_ok=True)
 
     train_path = os.path.join(root,"train.npz")
@@ -77,13 +246,15 @@ def main():
         id = np.hstack(id_test)
         np.savez(test_path, X=X, y=y, id=id)
 
-
-def extract_feature_center(img):
+def extract_feature_image(img):
     indices = calculate_indices(img)
     texture = calculate_texture(img)
     spatial = calculate_spatial(img)
 
-    image_features = np.vstack([img.numpy(), indices, texture, spatial])
+    return np.vstack([img.numpy(), indices, texture, spatial])
+
+def extract_feature_center(img):
+    image_features = extract_feature_image(img)
 
     c, h, w = image_features.shape
     return image_features[:, h // 2, w // 2]
@@ -91,11 +262,7 @@ def extract_feature_center(img):
 def extract_features(img, mask, N_pts=5):
     # calculates features and takes N_pts random positive and negative pixels
 
-    indices = calculate_indices(img)
-    texture = calculate_texture(img)
-    spatial = calculate_spatial(img)
-
-    image_features = np.vstack([img.numpy(),indices,texture,spatial])
+    image_features = extract_feature_image(img)
 
     x_pos, y_pos = np.where(mask)
     if len(x_pos) > 0:

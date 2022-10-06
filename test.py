@@ -1,13 +1,8 @@
 from model.segmentation_model import SegmentationModel
 from data.marinedebrisdatamodule import MarineDebrisDataModule
-from argparse import Namespace
 import argparse
 import pytorch_lightning as pl
 import os
-import pandas as pd
-import torch
-from PIL import Image
-import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib import colors
 from matplotlib import cm

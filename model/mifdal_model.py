@@ -18,7 +18,7 @@ def load_mifdal_model():
 
     """unet weights from 
     https://drive.google.com/uc?export=download&id=1uZkaj7MPubCqCzSTTYS_57vbxKpgbOig"""
-    state_dict = torch.load("/data/marinedebris/comparison/unet-posweight1-lr001-bs160-ep50-aug1-seed0.pth.tar")[
+    state_dict = torch.load("/data/marinedebris/results/mifdal/unet-posweight1-lr001-bs160-ep50-aug1-seed0.pth.tar")[
         "model_state_dict"]
     unet_model.load_state_dict(state_dict)
 
