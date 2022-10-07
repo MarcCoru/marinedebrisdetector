@@ -7,6 +7,7 @@ import pandas as pd
 from rasterio.features import rasterize
 import numpy as np
 from data.utils import read_tif_image
+import torch
 
 # regions where we could not re-download the corresponding tif image
 MISSING_REGIONS = [
@@ -98,10 +99,11 @@ CLASS_MAPPING = {
 DEBRIS_CLASSES = [1,2,3]
 
 class MaridaRegionDataset(Dataset):
-     def __init__(self,path,region, imagesize=128, data_transform=None):
+     def __init__(self,path,region, imagesize=128, data_transform=None, classification=False):
          self.imagesize = imagesize * 10
          self.data_transform = data_transform
          self.region = region
+         self.classification = classification
 
          gdf = gpd.read_file(os.path.join(path, "shapefiles", region + ".shp"))
          self.maskpath = os.path.join(path, "masks", region + ".tif")
@@ -159,7 +161,10 @@ class MaridaRegionDataset(Dataset):
           if self.data_transform is not None:
               image, mask = self.data_transform(image, mask)
 
-          return image, mask, f"{self.region}-{item}"
+          if self.classification:
+              mask = torch.tensor(row.id in DEBRIS_CLASSES).long()
+
+          return image, mask, f"marida-{item}"
 
 class MaridaDataset(ConcatDataset):
     def __init__(self, path, fold="train", **kwargs):

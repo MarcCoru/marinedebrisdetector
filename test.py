@@ -3,6 +3,9 @@ from data.marinedebrisdatamodule import MarineDebrisDataModule
 import argparse
 import pytorch_lightning as pl
 import os
+
+import matplotlib
+matplotlib.use('pdf')
 import matplotlib.pyplot as plt
 from matplotlib import colors
 from matplotlib import cm
@@ -16,7 +19,7 @@ pl.seed_everything(0)
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--comparison', type=str, default="ours", choices=["ours", "mifdal"])
-    parser.add_argument('--ckpt-folder', type=str, default="checkpoints/flobs-segm/unet++_2022-10-03_04:00:27")
+    parser.add_argument('--ckpt-folder', type=str, default="/data/marinedebris/results/ours/unet++_2022-10-03_04:00:27")
     parser.add_argument('--data-path', type=str, default="/data/marinedebris")
     parser.add_argument('--batch-size', type=int, default=64)
     parser.add_argument('--weight-decay', type=float, default=1e-12)

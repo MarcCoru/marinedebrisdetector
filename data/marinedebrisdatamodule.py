@@ -52,9 +52,16 @@ class MarineDebrisDataModule(pl.LightningDataModule):
         if not self.no_marida:
             train_datasets += [maridadataset]
 
-        self.train_dataset =  ConcatDataset(train_datasets)
+        self.train_dataset = ConcatDataset(train_datasets)
         self.valid_dataset = RefinedFlobsDataset(root=self.refined_flobs_path, fold="val", shuffle=True)
-        self.test_dataset = RefinedFlobsDataset(root=self.refined_flobs_path, fold="test", shuffle=True)
+
+        maridatestdataset = MaridaDataset(self.maridapath,
+                                          imagesize = self.image_size,
+                                          data_transform=get_transform("test", cropsize=self.image_size),
+                                          classification=True)
+        flobstestdataset = RefinedFlobsDataset(root=self.refined_flobs_path,
+                                               fold="test", shuffle=True)
+        self.test_dataset = ConcatDataset([flobstestdataset, maridatestdataset])
 
     def get_qualitative_validation_dataset(self, output_size=256):
         return RefinedFlobsQualitativeDataset(root=self.refined_flobs_path, fold="val", output_size=output_size)
