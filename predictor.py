@@ -13,8 +13,10 @@ from data import L2ABANDS, L1CBANDS
 class ScenePredictor():
 
     #def __init__(self, modelname, modelpath, image_size=(480,480), device="cpu", offset=64, use_test_aug=2, add_fdi_ndvi=False):
-    def __init__(self, image_size=(480,480), device="cpu", offset=64, use_test_aug=2, add_fdi_ndvi=False):
+    def __init__(self, image_size=(480,480), device="cpu", offset=64,
+                 use_test_aug=2, add_fdi_ndvi=False, activation="sigmoid"):
         self.image_size = image_size
+        self.activation = activation
         self.device = device
         self.offset = offset # remove border effects from the CNN
         self.use_test_aug = use_test_aug
@@ -73,7 +75,11 @@ class ScenePredictor():
                 # predict
                 with torch.no_grad():
                     x = image.unsqueeze(0)
-                    y_logits = torch.sigmoid(self.model(x).squeeze(0))
+
+                    y_logits = self.model(x).squeeze(0)
+
+                    if self.activation == "sigmoid":
+                        y_logits = torch.sigmoid(y_logits)
 
                     y_score = y_logits.cpu().detach().numpy()[0]
                     #y_score = y_score[:,self.offset:-self.offset, self.offset:-self.offset]

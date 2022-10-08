@@ -5,7 +5,7 @@ from data.marinedebrisdatamodule import MarineDebrisDataModule
 from visualization import rgb, fdi, ndvi
 import model.random_forest.engineering_patches as eng
 import numpy as np
-from random_forest import rf_classifier
+from random_forest import get_random_forest
 
 from functools import partial
 from tqdm import tqdm
@@ -13,7 +13,7 @@ import os
 
 import matplotlib
 import matplotlib.pyplot as plt
-matplotlib.use("TkAgg")
+matplotlib.use("pdf")
 
 import skimage.color
 import skimage
@@ -35,6 +35,7 @@ def main():
 
     extract_and_save_features(root, dm)
 
+    rf_classifier = get_random_forest()
     # TRAIN
     f = np.load(os.path.join(root, "train.npz"))
     X = f["X"]
@@ -61,6 +62,8 @@ def main():
     id = f["id"]
     region = np.array([i.split("-")[0] for i in id])
     is_accra = region == "accra_20181031"
+    is_durban = region == "durban_20190424"
+    is_marida = region == "marida"
 
     y_pred = rf_classifier.predict(X)
     yscore = rf_classifier.predict_proba(X)[:,1]
@@ -72,7 +75,6 @@ def main():
     for k, v in metrics.items():
         print(f"{k}: {v:.3f}")
 
-
     print("accra_20181031")
     print(classification_report(y[is_accra], y_pred[is_accra]))
 
@@ -81,7 +83,14 @@ def main():
         print(f"{k}: {v:.3f}")
 
     print("durban_20190424")
-    print(classification_report(y[~is_accra], y_pred[~is_accra]))
+    print(classification_report(y[is_durban], y_pred[is_durban]))
+
+    metrics = calculate_metrics(targets=y[~is_accra], scores=yscore[~is_accra], optimal_threshold=optimal_threshold)
+    for k, v in metrics.items():
+        print(f"{k}: {v:.3f}")
+
+    print("marida")
+    print(classification_report(y[is_marida], y_pred[is_marida]))
 
     metrics = calculate_metrics(targets=y[~is_accra], scores=yscore[~is_accra], optimal_threshold=optimal_threshold)
     for k, v in metrics.items():
