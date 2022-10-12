@@ -13,6 +13,7 @@ from data.label_refinement import refine_masks_iterative
 
 L1CBANDS = ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B9", "B10", "B11", "B12"]
 L2ABANDS = ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B9", "B11", "B12"]
+HRBANDS = ["B2", "B3", "B4","B8"]
 
 # offset from image border to sample hard negative mining samples
 HARD_NEGATIVE_MINING_SAMPLE_BORDER_OFFSET = 1000  # meter
@@ -77,7 +78,7 @@ def get_region_split(seed=0, fractions=(0.6, 0.2, 0.2)):
 class FloatingSeaObjectRegionDataset(torch.utils.data.Dataset):
     def __init__(self, root, region, output_size=64,
                  transform=None, hard_negative_mining=True,
-                 refine_labels=True, cache_to_npy=True):
+                 refine_labels=True):
 
         maskpath = os.path.join(root, "masks")
         os.makedirs(maskpath, exist_ok=True)
@@ -146,14 +147,6 @@ class FloatingSeaObjectRegionDataset(torch.utils.data.Dataset):
             with rio.open(self.maskfile, "w", **profile) as dst:
                 dst.write(mask[None])
 
-        """
-        if cache_to_npy:
-            reflab_suffix = "_reflab" if refine_labels else ""
-            self.npyfolder = os.path.join(root, f"npy_{output_size}"+reflab_suffix, region)
-            os.makedirs(self.npyfolder, exist_ok=True)
-        """
-
-
     def sample_points_for_hard_negative_mining(self):
         # hard negative mining:
         # get some random negatives from the image bounds to ensure that the model can learn on negative examples
@@ -182,6 +175,7 @@ class FloatingSeaObjectRegionDataset(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.lines)
 
+    """
     def item_in_cache(self, index):
         return os.path.exists(os.path.join(self.npyfolder, str(index) + ".npz"))
     def get_item_from_cache(self, index):
@@ -194,6 +188,7 @@ class FloatingSeaObjectRegionDataset(torch.utils.data.Dataset):
             id = f["id"]
 
         return image, mask, str(id)
+    """
 
     def __getitem__(self, index):
         line = self.lines.iloc[index]
@@ -225,53 +220,6 @@ class FloatingSeaObjectRegionDataset(torch.utils.data.Dataset):
             image, mask = self.transform(image, mask)
 
         return image, mask, id
-
-    """
-    def __getitem__OLD(self, index):
-        if hasattr(self, 'npyfolder') and self.item_in_cache(index):
-            image, mask, id = self.get_item_from_cache(index)
-        else:
-            image, mask, id = self.get_item_from_image(index)
-
-            # save to numpy
-            if hasattr(self, 'npyfolder'):
-                np.savez(os.path.join(self.npyfolder, str(index) + ".npz"),
-                         image=image,
-                         mask=mask,
-                         id=id)
-
-        if self.transform is not None:
-            image, mask = self.transform(image, mask)
-
-        return image, mask, id
-
-    def get_item_from_image(self, index):
-        line = self.lines.iloc[index]
-
-        window = get_window(line, output_size=self.output_size, transform=self.imagemeta["transform"])
-
-        image, win_transform = read_tif_image(self.imagefile, window)
-
-        # rasterize geometries to mask
-        mask = features.rasterize(self.rasterize_geometries, all_touched=True,
-                                  transform=win_transform, out_shape=image[0].shape)
-
-        # pad image if at the border
-        image, mask = pad(image, mask, self.output_size)
-
-        # to float
-        image, mask = image.astype(float), mask.astype(float)
-
-
-        # mark random points form hard negative mining with a suffix
-        # to distinguish them from actual labels
-        hard_negative_mining_suffix = "-hnm" if line["is_hnm"] else ""
-        id = f"{self.region}-{index}" + hard_negative_mining_suffix
-
-        image = np.nan_to_num(image)
-
-        return image, mask, id
-    """
 
 class FloatingSeaObjectDataset(torch.utils.data.ConcatDataset):
     def __init__(self, root, fold="train", **kwargs):

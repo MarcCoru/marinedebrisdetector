@@ -13,7 +13,7 @@ def center_crop(image,mask):
     return image, mask
 """
 
-def get_transform(mode, intensity=0, add_fdi_ndvi=False, cropsize = 224):
+def get_transform(mode, intensity=0, add_fdi_ndvi=False, cropsize = 224, hr_only=False):
     assert mode in ["train", "test"]
     if mode in ["train"]:
         def train_transform(image, mask=None):

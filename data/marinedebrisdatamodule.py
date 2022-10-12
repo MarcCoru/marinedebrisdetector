@@ -16,7 +16,8 @@ class MarineDebrisDataModule(pl.LightningDataModule):
                  workers: int = 16,
                  no_label_refinement=False,
                  no_s2ships=False,
-                 no_marida=False):
+                 no_marida=False,
+                 hr_only=False):
 
         super().__init__()
         self.data_root = data_root
@@ -25,6 +26,7 @@ class MarineDebrisDataModule(pl.LightningDataModule):
         self.image_size = image_size
         self.image_load_size = int(self.image_size * 1.2)
         self.workers = workers
+        self.hr_only = hr_only
 
         #label-refinement
         self.no_label_refinement = no_label_refinement
@@ -42,7 +44,7 @@ class MarineDebrisDataModule(pl.LightningDataModule):
         image_load_size = int(self.image_size * 1.2)  # load images slightly larger to be cropped later to image_size
         flobs_dataset = FloatingSeaObjectDataset(self.flobs_path, fold="train",
                                                  transform=train_transform, refine_labels=not self.no_label_refinement,
-                                                 output_size=image_load_size, cache_to_npy=True)
+                                                 output_size=image_load_size)
         shipsdataset = S2Ships(self.s2ships_path, imagesize=image_load_size, transform=train_transform)
         maridadataset = MaridaDataset(self.maridapath, imagesize = image_load_size, data_transform=train_transform)
 
@@ -55,9 +57,10 @@ class MarineDebrisDataModule(pl.LightningDataModule):
         self.train_dataset = ConcatDataset(train_datasets)
         self.valid_dataset = RefinedFlobsDataset(root=self.refined_flobs_path, fold="val", shuffle=True)
 
+        test_transform = get_transform("test", cropsize=self.image_size)
         maridatestdataset = MaridaDataset(self.maridapath,
                                           imagesize = self.image_size,
-                                          data_transform=get_transform("test", cropsize=self.image_size),
+                                          data_transform=test_transform,
                                           classification=True)
         flobstestdataset = RefinedFlobsDataset(root=self.refined_flobs_path,
                                                fold="test", shuffle=True)

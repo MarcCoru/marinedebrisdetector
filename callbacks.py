@@ -41,7 +41,7 @@ class RefinedRegionsQualitativeCallback(pl.Callback):
 
     def on_validation_epoch_end(self, trainer, model):
         stats = []
-        for idx, (x,id) in enumerate(self.dataset):
+        for idx, (x, y, id) in enumerate(self.dataset):
             stat = dict(id=id)
 
             image = torch.from_numpy(x).unsqueeze(0).to(model.device).float()

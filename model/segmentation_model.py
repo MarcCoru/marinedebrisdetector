@@ -12,13 +12,16 @@ class SegmentationModel(pl.LightningModule):
         super().__init__()
 
         model = args.model
-        learning_rate = args.learning_rate
-        weight_decay = args.weight_decay
+        self.learning_rate = args.learning_rate
+        self.weight_decay = args.weight_decay
 
-        self.learning_rate = learning_rate
-        self.weight_decay = weight_decay
+        self.hr_only = args.hr_only # keep only HR bands R-G-B-NIR
+        if self.hr_only:
+            self.inchannels = 4
+        else:
+            self.inchannels = 12
 
-        self.model = get_model(model, inchannels=12, pretrained=False)
+        self.model = get_model(model, inchannels=self.inchannels, pretrained=False)
 
         self.criterion = get_loss()
 
@@ -28,10 +31,14 @@ class SegmentationModel(pl.LightningModule):
         self.save_hyperparameters()
 
     def forward(self, x):
+
+        if x.shape[1] > self.inchannels:
+            x = x[:, np.array([1, 2, 3, 7])]
+
         return self.model(x)
 
     def predict(self, x, return_probs=False):
-        probs = torch.sigmoid(self.model(x))
+        probs = torch.sigmoid(self(x))
         if return_probs:
             return (probs > self.threshold).long(), probs
         else:
@@ -39,7 +46,7 @@ class SegmentationModel(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         im, target, id = batch
-        y_pred = self.model(im)
+        y_pred = self(im)
         loss = self.criterion(y_pred.squeeze(1), target)
         return loss
 
@@ -48,7 +55,7 @@ class SegmentationModel(pl.LightningModule):
 
     def common_step(self, batch, batch_idx):
         images, masks, id = batch
-        logits = self.model(images)
+        logits = self(images)
         N, _, H, W = logits.shape
         h, w = H//2, W // 2
         logits = logits.squeeze(1)[:, h, w] # keep only center
