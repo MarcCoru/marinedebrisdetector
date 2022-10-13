@@ -28,12 +28,12 @@ from matplotlib import cm
 
 def main():
     root = "/data/marinedebris/results/kikaki/randomforest"
-
+    N_images = 100000
 
     dm = MarineDebrisDataModule("/data/marinedebris", no_label_refinement=True)
     dm.setup("fit")
 
-    extract_and_save_features(root, dm)
+    extract_and_save_features(root, dm, N_images=N_images)
 
     rf_classifier = get_random_forest()
     # TRAIN
@@ -191,12 +191,11 @@ def write_qualitative(rf_classifier, qual_test_dataset, path, cut_border=0, opti
         print(f"writing {os.path.abspath(write_path)}")
 
 
-def extract_and_save_features(root, dm):
+def extract_and_save_features(root, dm, N_images = 10000, N_pts = 5):
     """
     generates train.npz. val.npz and test.noz in root if they dont exist
     takes several hours
     """
-
 
     os.makedirs(root, exist_ok=True)
 
@@ -204,8 +203,7 @@ def extract_and_save_features(root, dm):
     val_path = os.path.join(root, "val.npz")
     test_path = os.path.join(root, "test.npz")
 
-    N_images = 10000
-    N_pts = 5
+
 
     if not os.path.exists(train_path):
         train_dataset = dm.train_dataset
@@ -258,9 +256,9 @@ def extract_and_save_features(root, dm):
 def extract_feature_image(img):
     indices = calculate_indices(img)
     texture = calculate_texture(img)
-    spatial = calculate_spatial(img)
+    # spatial = calculate_spatial(img) # spatial feature are not used in the paper
 
-    return np.vstack([img.numpy(), indices, texture, spatial])
+    return np.vstack([img.numpy(), indices, texture])
 
 def extract_feature_center(img):
     image_features = extract_feature_image(img)

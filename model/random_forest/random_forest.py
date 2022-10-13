@@ -25,5 +25,5 @@ def get_random_forest():
                                          random_state=5,
                                          n_jobs=-1)
 
-    rf_classifier = random_forest # Pipeline(steps=[('scaler', StandardScaler()), ('rf', random_forest)], verbose = 4)
+    rf_classifier = Pipeline(steps=[('scaler', StandardScaler()), ('rf', random_forest)], verbose = 4)
     return rf_classifier
