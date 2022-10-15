@@ -72,9 +72,8 @@ def main(args):
 
 
     predictor = ScenePredictor(device="cuda")
-    for ds in marinedebris_datamodule.get_qualitative_test_dataset().datasets:
-        path = ds.tifffile
-        predpath = os.path.join(args.ckpt_folder, "test_scenes", os.path.basename(path))
+    for name, path in marinedebris_datamodule.get_prediction_scene_paths():
+        predpath = os.path.join(args.ckpt_folder, "test_scenes", name + "_prediction.tif")
         os.makedirs(os.path.dirname(predpath), exist_ok=True)
         print(f"writing {os.path.abspath(predpath)}")
         predictor.predict(TestTimeAugmentation_wapper(model), path, predpath)

@@ -9,9 +9,13 @@ import numpy as np
 import pandas as pd
 from skimage.exposure import equalize_hist
 import matplotlib.pyplot as plt
-
+import matplotlib
+matplotlib.use("TkAgg")
 
 bands = ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B9", "B11", "B12"]
+
+annotated_objects = ['debris', 'ships', 'land', 'coastline', 'cummulus_clouds',
+       'haze_dense', 'haze_transparent']
 
 class DurbanDataset(torch.utils.data.Dataset):
     def __init__(self, root, output_size=64,
@@ -107,7 +111,38 @@ def s2_to_NDVI(scene):
     RED = scene[bands.index("B4")]
     return (NIR - RED) / (NIR + RED + 1e-12)
 
+def write_annotations_file(
+        objects_file = "/data/marinedebris/durban/durban_20190424_objects.shp",
+        tiffile = "/data/marinedebris/durban/durban_20190424.tif",
+        annotationfile = "/data/marinedebris/durban/durban_20190424_annotated.tif"
+    ):
+
+    gdf = gpd.read_file(objects_file)
+
+    with rio.open(tiffile, "r") as src:
+        gdf = gdf.to_crs(src.crs)
+        profile = src.profile
+
+    profile.update(
+        count=len(annotated_objects),
+        dtype="uint8"
+    )
+
+    with rio.open(annotationfile, "w", **profile) as dst:
+        for i, object_name in enumerate(annotated_objects):
+            gdf_ = gdf.loc[gdf["name"] == object_name]
+
+            with rio.open(tiffile, "r") as src:
+                mask = features.rasterize(gdf_.geometry, all_touched=True,
+                                          transform=src.transform, out_shape=(src.height, src.width))
+
+                dst.write_band(i + 1, mask)
+
+                dst.set_band_description(i + 1, object_name)
+
 if __name__ == '__main__':
+    write_annotations_file()
+
     ds = DurbanDataset(root="/data/marinedebris/durban")
     for image, mask, id in ds:
         fig, axs = plt.subplots(1,4,figsize=(3*4,3))
@@ -134,5 +169,7 @@ if __name__ == '__main__':
 
         fig.suptitle(id)
         fig.tight_layout()
+
+        break
 
     plt.show()

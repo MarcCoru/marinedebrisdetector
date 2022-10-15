@@ -39,14 +39,19 @@ class MarineDebrisDataModule(pl.LightningDataModule):
         self.plp_path = os.path.join(self.data_root, "PLP")
         self.maridapath = os.path.join(self.data_root, "MARIDA")
 
-    def setup(self, stage: str):
+        # scenes to be predicted
+        self.durban_scene = os.path.join(self.data_root, "durban", "durban_20190424.tif")
+        self.durban_l1c_scene = os.path.join(self.data_root, "durban", "durban_20190424_l1c.tif")
+        self.accra_scene = os.path.join(self.data_root, "marinedebris_refined", "accra_20181031.tif")
+
+    def setup(self, stage=None):
         train_transform = get_transform("train", intensity=self.augmentation_intensity, cropsize=self.image_size)
         image_load_size = int(self.image_size * 1.2)  # load images slightly larger to be cropped later to image_size
         flobs_dataset = FloatingSeaObjectDataset(self.flobs_path, fold="train",
                                                  transform=train_transform, refine_labels=not self.no_label_refinement,
                                                  output_size=image_load_size)
         shipsdataset = S2Ships(self.s2ships_path, imagesize=image_load_size, transform=train_transform)
-        maridadataset = MaridaDataset(self.maridapath, imagesize = image_load_size, data_transform=train_transform)
+        maridadataset = MaridaDataset(self.maridapath, imagesize = image_load_size, data_transform=train_transform, fold="train")
 
         train_datasets = [flobs_dataset]
         if not self.no_s2ships:
@@ -58,7 +63,7 @@ class MarineDebrisDataModule(pl.LightningDataModule):
         self.valid_dataset = RefinedFlobsDataset(root=self.refined_flobs_path, fold="val", shuffle=True)
 
         test_transform = get_transform("test", cropsize=self.image_size)
-        maridatestdataset = MaridaDataset(self.maridapath,
+        maridatestdataset = MaridaDataset(self.maridapath, fold="test",
                                           imagesize = self.image_size,
                                           data_transform=test_transform,
                                           classification=True)
@@ -71,6 +76,13 @@ class MarineDebrisDataModule(pl.LightningDataModule):
 
     def get_qualitative_test_dataset(self, output_size=256):
         return RefinedFlobsQualitativeDataset(root=self.refined_flobs_path, fold="test", output_size=output_size)
+
+    def get_prediction_scene_paths(self):
+        return [
+                    ("durban", self.durban_scene),
+                    ("durban_l1c", self.durban_l1c_scene),
+                    ("accra", self.accra_scene)
+                ]
 
     def get_plp_dataset(self, year, output_size=32):
         return PLPDataset(root=self.plp_path, year=year, output_size=output_size)
