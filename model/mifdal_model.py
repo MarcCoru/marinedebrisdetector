@@ -13,6 +13,7 @@ def load_mifdal_model():
         model = "unet",
         learning_rate = 0.001,
         weight_decay = 1e-4,
+        hr_only = False
     )
     model = SegmentationModel(args)
 
