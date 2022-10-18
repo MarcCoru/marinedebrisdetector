@@ -1,6 +1,5 @@
 import os.path
 
-import numpy as np
 import rasterio
 from skimage.segmentation import random_walker
 from visualization import fdi
@@ -8,30 +7,27 @@ from skimage.morphology import dilation, disk
 from skimage.filters import threshold_otsu
 from data.utils import get_window, read_tif_image, line_is_closed
 from rasterio import features
-from tqdm import tqdm
 import geopandas as gpd
-from multiprocessing import Pool
 from tqdm.contrib.concurrent import process_map
 from shapely.geometry import Polygon
-
-from visualization import rgb
 import numpy as np
-import pandas as pd
 
+from itertools import product
 
-refinement_args_list = [
-                            dict(buffersize_water=2,rw_beta=10), # b1
-                            dict(buffersize_water=3,rw_beta=10), # b2
-                            dict(buffersize_water=4,rw_beta=10), # b3
-                            dict(buffersize_water=2, rw_beta=1), # b4
-                            dict(buffersize_water=3,rw_beta=1), # b5
-                            dict(buffersize_water=4,rw_beta=1), # b6
-                        ]
+buffersizes_water = [0,1,2]
+rw_beta = [1,10]
+object_seed_probability = [0.25, 0.5, 0.75, 0.95]
+
+refinement_args_list = [dict(buffersize_water=w, rw_beta=beta, object_seed_probability=seed)
+    for w, beta, seed in product(buffersizes_water, rw_beta, object_seed_probability)]
+
+#print(f"arguments")
+#print(refinement_args_list)
 
 def main(root="/data/marinedebris/floatingobjects"):
     scenes_path = os.path.join(root, "scenes")
     shapefile_path = os.path.join(root, "shapefiles")
-    masks_path = os.path.join(root, "masks", "refined")
+    masks_path = os.path.join(root, "masks", "refined2")
 
     shapefiles = [os.path.join(shapefile_path, shp) for shp in os.listdir(shapefile_path) if shp.endswith("shp")]
     regions = [os.path.basename(shp).replace(".shp","") for shp in shapefiles]
@@ -142,34 +138,40 @@ def refine_masks_iterative(imagetiffile, masktifffile, geometries,
 
 
             mask_refined = np.vstack([refine_masks(image, mask_rasterized, **refinement_args)[None] for refinement_args in refinement_args_list])
-            mask_previous = dst.read(window=window)
+            mask_previous = dst.read(window=window)[1:] # take previously written refined masks (excluding first band containing the original mask)
 
             # combine by or-ing both together
             new_mask = mask_refined | mask_previous
 
-            dst.write(new_mask.astype(np.uint8), window=window)
+            # stack unrefined mask at first position
+            all_masks = np.vstack([mask_rasterized[None], new_mask])
+
+            dst.write(all_masks.astype(np.uint8), window=window)
+
+            dst.set_band_description(1, f"original")
+            for i, desc in enumerate(refinement_args_list):
+                dst.set_band_description(i+2, f"buff{desc['buffersize_water']}_beta{desc['rw_beta']}_pseed{desc['object_seed_probability']}")
 
         print(f"writing {masktifffile}")
 
 
 
 def initialize_mask(imagetiffile, masktifffile):
+    os.makedirs(os.path.dirname(masktifffile), exist_ok=True)
+
     if os.path.exists(masktifffile):
         os.remove(masktifffile)
 
     with rasterio.open(imagetiffile, "r") as src:
         profile = src.meta
         profile.update(
-            count=len(refinement_args_list),
+            count=len(refinement_args_list) + 1,
             dtype="uint8",
             compression="lzw"
         )
 
-        #profile.pop("blockxsize")
-        #profile.pop("blockysize")
-
     with rasterio.open(masktifffile, "w+", **profile) as dst:
-        dst.write(np.zeros((len(refinement_args_list), profile["height"], profile["width"])))
+        dst.write(np.zeros((len(refinement_args_list) + 1, profile["height"], profile["width"])))
 
     return profile
 

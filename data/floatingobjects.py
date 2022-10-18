@@ -140,7 +140,6 @@ class FloatingSeaObjectRegionDataset(torch.utils.data.Dataset):
         os.makedirs(os.path.dirname(self.maskfile), exist_ok=True)
 
         if not os.path.exists(self.maskfile) and not self.refine_labels:
-            print("label refinement")
             mask = features.rasterize(self.rasterize_geometries, all_touched=True,
                                       transform=self.geotransform, out_shape=(self.height, self.width))
 
