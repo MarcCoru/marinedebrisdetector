@@ -73,9 +73,17 @@ class SegmentationModel(pl.LightningModule):
         y_true = np.hstack([o["y_true"] for o in outputs])
         y_scores = np.hstack([o["y_scores"] for o in outputs])
         loss = np.hstack([o["loss"] for o in outputs])
+        ids = np.hstack([o["id"] for o in outputs])
 
         y_true = y_true.reshape(-1).astype(int)
         y_scores = y_scores.reshape(-1)
+
+        #is_marida = np.array(["marida" in i for i in ids])
+        #y_true_marida = y_true[is_marida]
+        #y_scores_marida = y_scores[is_marida]
+
+        #y_true = y_true[~is_marida]
+        #y_scores = y_scores[~is_marida]
 
         precision, recall, thresholds = precision_recall_curve(y_true, y_scores)
         ix = np.abs(precision - recall).argmin()
@@ -88,9 +96,15 @@ class SegmentationModel(pl.LightningModule):
         wandb.log({"pr": wandb.plot.pr_curve(y_true, np.stack([1-y_scores, y_scores]).T,
                                              labels=[0, 1], classes_to_plot=[1])})
 
+        #if len(y_scores_marida) > 100: # only if some samples available to calculate metrics
+        #    metrics_marida = calculate_metrics(y_true_marida, y_scores_marida, optimal_threshold)
+        #    self.log("validation-marida", {k: torch.tensor(v) for k, v in metrics_marida.items()})
+
         metrics = calculate_metrics(y_true, y_scores, optimal_threshold)
+        self.log("validation", {k: torch.tensor(v) for k, v in metrics.items()})
+
         self.log("val_loss", loss.mean())
-        self.log("validation", {k:torch.tensor(v) for k,v in metrics.items()})
+
 
     def test_epoch_end(self, outputs) -> None:
         y_true = np.hstack([o["y_true"] for o in outputs])

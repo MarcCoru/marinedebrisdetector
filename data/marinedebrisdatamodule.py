@@ -59,10 +59,15 @@ class MarineDebrisDataModule(pl.LightningDataModule):
         if not self.no_marida:
             train_datasets += [maridadataset]
 
-        self.train_dataset = ConcatDataset(train_datasets)
-        self.valid_dataset = RefinedFlobsDataset(root=self.refined_flobs_path, fold="val", shuffle=True)
-
         test_transform = get_transform("test", cropsize=self.image_size)
+        self.train_dataset = ConcatDataset(train_datasets)
+        self.valid_dataset = ConcatDataset([
+            RefinedFlobsDataset(root=self.refined_flobs_path, fold="val", shuffle=True),
+            MaridaDataset(self.maridapath, fold="val",
+                          imagesize=self.image_size,
+                          data_transform=test_transform,
+                          classification=True)
+        ])
         maridatestdataset = MaridaDataset(self.maridapath, fold="test",
                                           imagesize = self.image_size,
                                           data_transform=test_transform,

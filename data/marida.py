@@ -96,7 +96,9 @@ CLASS_MAPPING = {
      15: 'Mixed Water'
 }
 
-DEBRIS_CLASSES = [1,2,3]
+DEBRIS_CLASSES = [1,2,3,4,9]
+
+KEEP_CLASSES = [1, 7]
 
 class MaridaRegionDataset(Dataset):
      def __init__(self,path,region, imagesize=128, data_transform=None, classification=False):
@@ -108,6 +110,10 @@ class MaridaRegionDataset(Dataset):
          tile = region[-5:]
 
          gdf = gpd.read_file(os.path.join(path, "shapefiles", region + ".shp"))
+
+         # keep only classes in keep classes
+         gdf = gdf.loc[gdf["id"].isin(KEEP_CLASSES)]
+
          self.maskpath = os.path.join(path, "masks", region + ".tif")
          os.makedirs(os.path.dirname(self.maskpath), exist_ok=True)
 
