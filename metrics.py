@@ -1,6 +1,6 @@
 from torch import nn
 from sklearn.metrics import roc_auc_score, precision_recall_fscore_support, \
-    cohen_kappa_score, jaccard_score
+    cohen_kappa_score, jaccard_score, accuracy_score
 
 def get_loss(pos_weight=None):
     bcecriterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight, reduction="none")
@@ -25,9 +25,12 @@ def calculate_metrics(targets, scores, optimal_threshold):
 
     jaccard = jaccard_score(targets, predictions)
 
+    accuracy = accuracy_score(targets, predictions)
+
     summary = dict(
         auroc=auroc,
         precision=p,
+        accuracy=accuracy,
         recall=r,
         fscore=f,
         kappa=kappa,

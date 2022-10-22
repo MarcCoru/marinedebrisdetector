@@ -96,9 +96,24 @@ CLASS_MAPPING = {
      15: 'Mixed Water'
 }
 
-DEBRIS_CLASSES = [1,2,3,4,9]
+# the paper uses fewer classes in the evaluation tables
+CLASS_MAPPING_USED = {
+     1: 'Marine Debris',
+     2: 'Dense Sargassum',
+     3: 'Sparse Sargassum',
+     4: 'Natural Organic Material',
+     5: 'Ship',
+     6: 'Clouds',
+     7: 'Marine Water',
+     8: 'Sediment-Laden Water',
+     9: 'Foam',
+     10: 'Turbid Water',
+     11: 'Shallow Water'
+}
 
 KEEP_CLASSES = [1, 7]
+
+DEBRIS_CLASSES = [1,2,3,4,9]
 
 class MaridaRegionDataset(Dataset):
      def __init__(self,path,region, imagesize=128, data_transform=None, classification=False):
