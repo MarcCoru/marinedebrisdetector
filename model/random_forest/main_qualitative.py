@@ -2,32 +2,19 @@ import sys
 sys.path.append("/home/marc/projects/marinedetector")
 import joblib
 from data.marinedebrisdatamodule import MarineDebrisDataModule
-from visualization import rgb, fdi, ndvi
-import model.random_forest.engineering_patches as eng
 import numpy as np
 from random_forest import get_random_forest
 
-from functools import partial
-from tqdm import tqdm
 import os
 
 import matplotlib
-import matplotlib.pyplot as plt
 matplotlib.use("pdf")
 
 from predictor import ScenePredictor
 
-import skimage.color
-import skimage
-from skimage import feature
-from sklearn.metrics import classification_report, precision_recall_curve
-from main import extract_feature_image
+from sklearn.metrics import precision_recall_curve
+from test_kikaki import extract_feature_image
 import torch
-from metrics import calculate_metrics
-
-import matplotlib.pyplot as plt
-from matplotlib import colors
-from matplotlib import cm
 
 def main():
     root = "/data/marinedebris/results/kikaki/randomforest"

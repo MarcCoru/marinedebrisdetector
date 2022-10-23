@@ -75,6 +75,7 @@ def plot_detections(p_peaks, image_file):
     return fig
 
 def main(datapath = "/data/marinedebris/durban",
+         threshold = None,
          checkpoint_file = "/data/marinedebris/results/ours/unet++_2022-10-03_04:00:27/epoch=89-val_loss=0.52.ckpt"):
 
     checkpoint_path = os.path.dirname(checkpoint_file)
@@ -83,35 +84,48 @@ def main(datapath = "/data/marinedebris/durban",
     prediction_file_l1c = os.path.join(checkpoint_path, "test_scenes", "durban_l1c_prediction.tif")
 
     write_path = "/data/marinedebris/results/ours/unet++_2022-10-03_04:00:27/confusiondurban"
+    os.makedirs(write_path, exist_ok=True)
 
     image_file = os.path.join(datapath,"durban_20190424.tif")
     image_file_l1c = os.path.join(datapath, "durban_20190424_l1c.tif")
     annotation_file = os.path.join(datapath, "durban_20190424_annotated.tif")
 
-    threshold = float(torch.load(checkpoint_file, map_location="cpu")["state_dict"]["threshold"])
-    print(threshold)
+    if threshold is None:
+        threshold = float(torch.load(checkpoint_file, map_location="cpu")["state_dict"]["threshold"])
+        print(threshold)
 
     df, p_peaks, annotated_objects_all = get_confusions(prediction_file, annotation_file, threshold)
     df.loc[["debris", "haze_transparent", "haze_dense", "cummulus_clouds", "ships", "land", "coastline", "water"]]
     print(df)
+    df.to_csv(os.path.join(write_path, "counts.csv"))
     print(df.sum())
     fig = plot_detections(p_peaks, image_file)
 
-    os.makedirs(write_path, exist_ok=True)
     writefile = os.path.join(write_path, "detections.png")
     print(f"writing plot to {writefile}")
     fig.savefig(writefile, bbox_inches="tight", pad_inches=0)
 
     df, p_peaks, annotated_objects_all = get_confusions(prediction_file_l1c, annotation_file, threshold)
     df.loc[["debris", "haze_transparent", "haze_dense", "cummulus_clouds", "ships", "land", "coastline", "water"]]
+
     print(df)
+    df.to_csv(os.path.join(write_path, "counts_l1c.csv"))
     print(df.sum())
     fig = plot_detections(p_peaks, image_file_l1c)
 
-    os.makedirs(write_path, exist_ok=True)
     writefile = os.path.join(write_path, "detections_l1c.png")
     print(f"writing plot to {writefile}")
     fig.savefig(writefile, bbox_inches="tight", pad_inches=0)
 
 if __name__ == '__main__':
-    main()
+    main(datapath="/data/marinedebris/durban",
+         threshold=None,
+         checkpoint_file="/data/marinedebris/results/ours/unet++_2022-10-03_04:00:27/epoch=89-val_loss=0.52.ckpt")
+
+    main(datapath="/data/marinedebris/durban",
+         threshold=None,
+         checkpoint_file="/data/marinedebris/results/ours/unet++_2022-10-21-1e6/epoch=11-val_loss=0.45.ckpt")
+
+    main(datapath="/data/marinedebris/durban",
+         threshold=0.038854,
+         checkpoint_file="/data/marinedebris/results/mifdal/unet-posweight1-lr001-bs160-ep50-aug1-seed0/unet-posweight1-lr001-bs160-ep50-aug1-seed0.pth.tar")
