@@ -118,6 +118,8 @@ def write_qualitative(model, dataset, path, cut_border=0):
         write_predictions(model, y_score, x, path, mask, id)
 
 def write_predictions(model, y_score, x, path, mask, id):
+    y_pred = y_score > model.threshold.numpy()
+
     fig, ax = plt.subplots()
     ax.imshow(y_score, vmin=0, vmax=1, cmap="Reds")
     ax.axis("off")
@@ -126,7 +128,7 @@ def write_predictions(model, y_score, x, path, mask, id):
     print(f"writing {os.path.abspath(write_path)}")
 
     fig, ax = plt.subplots()
-    ax.imshow(y_score > model.threshold.numpy(), vmin=0, vmax=1, cmap="Reds")
+    ax.imshow(y_pred, vmin=0, vmax=1, cmap="Reds")
     ax.axis("off")
     write_path = os.path.join(path, f"{id}_ypred.png")
     fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
@@ -162,6 +164,14 @@ def write_predictions(model, y_score, x, path, mask, id):
     ax.contour(y_score, cmap="Reds", vmin=0, vmax=1, levels=8)
     ax.axis("off")
     write_path = os.path.join(path, f"{id}_yscore_overlay.png")
+    fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
+    print(f"writing {os.path.abspath(write_path)}")
+
+    fig, ax = plt.subplots()
+    ax.imshow(rgb(x.squeeze(0).cpu().numpy()).transpose(1, 2, 0))
+    ax.contour(y_pred, cmap="Reds", vmin=0, vmax=1, levels=8)
+    ax.axis("off")
+    write_path = os.path.join(path, f"{id}_ypred_overlay.png")
     fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
     print(f"writing {os.path.abspath(write_path)}")
 
