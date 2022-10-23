@@ -102,6 +102,7 @@ class SegmentationModel(pl.LightningModule):
 
         metrics = calculate_metrics(y_true, y_scores, optimal_threshold)
         self.log("validation", {k: torch.tensor(v) for k, v in metrics.items()})
+        self.log("auroc", metrics["auroc"])
 
         self.log("val_loss", loss.mean())
 

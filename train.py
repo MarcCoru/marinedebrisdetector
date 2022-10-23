@@ -62,11 +62,11 @@ def main(args):
 
     checkpointer = pl.callbacks.ModelCheckpoint(
         dirpath=os.path.join(os.getcwd(), "checkpoints", args.project, run_name),
-        filename="{epoch}-{val_loss:.2f}",
-        save_top_k=1,
-        monitor="val_loss",
-        mode="min",
-        save_last=True,
+        filename="{epoch}-{val_loss:.2f}-{auroc:.3f}",
+        save_top_k=3,
+        monitor="auroc",
+        mode="max",
+        save_last=False,
     )
 
     plp_callback_2021 = PLPCallback(logger, marinedebris_datamodule.get_plp_dataset(2021))

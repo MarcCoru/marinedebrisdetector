@@ -12,7 +12,7 @@ def main():
     model = load_mifdal_model()
 
     model.eval()
-    dm = MarineDebrisDataModule("/data/marinedebris")
+    dm = MarineDebrisDataModule("/data/marinedebris", image_size=128)
     dm.setup("fit")
     dl = dm.val_dataloader()
 

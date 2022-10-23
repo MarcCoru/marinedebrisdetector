@@ -91,6 +91,18 @@ class PLPCallback(pl.Callback):
 
         y_probs = torch.sigmoid(model(images)).squeeze(1)
 
+        pred = y_probs > model.threshold
+        msk = (masks > 0)
+
+        recall= msk[pred].float().mean().cpu().detach().numpy()
+        precision = pred[msk].float().mean().cpu().detach().numpy()
+        fscore = 2 * (precision*recall) / (precision+recall+1e-12)
+        self.log(f"PLP{self.dataset.year}", dict(
+            recall=float(recall),
+            precision=float(precision),
+            fscore=float(fscore)
+        ))
+
         stats = []
         for image, mask, y_prob, year in zip(images, masks, y_probs, years):
             stat = dict(year=year)

@@ -24,7 +24,7 @@ def load_mifdal_model():
     unet_model.load_state_dict(state_dict)
 
     # value determined by mifdal_validation.py
-    model.register_buffer("threshold", torch.tensor(0.03857))
+    model.register_buffer("threshold", torch.tensor(0.038854))
 
     model.model = unet_model
 
