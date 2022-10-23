@@ -1,11 +1,11 @@
 import sys
-sys.path.append("/home/marc/projects/marinedetector")
 
+import pandas as pd
 from data.marinedebrisdatamodule import MarineDebrisDataModule
 from visualization import rgb, fdi, ndvi
 import model.random_forest.engineering_patches as eng
 import numpy as np
-from random_forest import get_random_forest
+from model.random_forest.random_forest import get_random_forest
 
 from functools import partial
 from tqdm import tqdm
@@ -25,12 +25,28 @@ from metrics import calculate_metrics
 import matplotlib.pyplot as plt
 from matplotlib import colors
 from matplotlib import cm
+import argparse
 
-def main():
-    root = "/data/marinedebris/results/kikaki/randomforest"
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--ckpt-folder', type=str, default="/data/marinedebris/results/kikaki/randomforest")
+    parser.add_argument('--data-path', type=str, default="/data/marinedebris")
+
+    args = parser.parse_args()
+
+    return args
+
+
+def main(args):
+    root = args.ckpt_folder
+    data_path = args.data_path
+
     N_images = 100000
 
-    dm = MarineDebrisDataModule("/data/marinedebris", no_label_refinement=True)
+    # container for metrics.csv will be updated
+    stats = dict()
+
+    dm = MarineDebrisDataModule(data_path, no_label_refinement=True)
     dm.setup("fit")
 
     extract_and_save_features(root, dm, N_images=N_images)
@@ -75,12 +91,18 @@ def main():
     for k, v in metrics.items():
         print(f"{k}: {v:.3f}")
 
+    # store in dict for metrics.csv
+    stats.update(**{f"test_{k}": v for k, v in metrics.items()})
+
     print("accra_20181031")
     print(classification_report(y[is_accra], y_pred[is_accra]))
 
     metrics = calculate_metrics(targets=y[is_accra], scores=yscore[is_accra], optimal_threshold=optimal_threshold)
     for k, v in metrics.items():
         print(f"{k}: {v:.3f}")
+
+    # store in dict for metrics.csv
+    stats.update(**{f"test_accra_20181031_{k}": v for k, v in metrics.items()})
 
     print("durban_20190424")
     print(classification_report(y[is_durban], y_pred[is_durban]))
@@ -89,6 +111,9 @@ def main():
     for k, v in metrics.items():
         print(f"{k}: {v:.3f}")
 
+    # store in dict for metrics.csv
+    stats.update(**{f"test_durban_20190424_{k}": v for k, v in metrics.items()})
+
     print("marida")
     print(classification_report(y[is_marida], y_pred[is_marida]))
 
@@ -96,15 +121,23 @@ def main():
     for k, v in metrics.items():
         print(f"{k}: {v:.3f}")
 
-    path = "/data/marinedebris/results/kikaki/randomforest/qualitative"
+    # store in dict for metrics.csv
+    stats.update(**{f"test_marida_{k}": v for k, v in metrics.items()})
+
+    # this path emulates the pytorch lightning default logger (consistent with other models)
+    metrics_file = os.path.join(root, "test_log", "version_0", "metrics.csv")
+    os.makedirs(os.path.dirname(metrics_file), exist_ok=True)
+    pd.DataFrame([stats]).to_csv(metrics_file)
+
+    path = root + "/qualitative"
     qual_test_dataset = dm.get_qualitative_test_dataset()
     write_qualitative(rf_classifier, qual_test_dataset, path, optimal_threshold=optimal_threshold)
 
-    path = "/data/marinedebris/results/kikaki/randomforest/plp2021"
+    path = root + "/plp2021"
     qual_test_dataset = dm.get_plp_dataset(2021, output_size=64)
     write_qualitative(rf_classifier, qual_test_dataset, path, cut_border=16, optimal_threshold=optimal_threshold)
 
-    path = "/data/marinedebris/results/kikaki/randomforest/plp2022"
+    path = root + "/plp2022"
     qual_test_dataset = dm.get_plp_dataset(2022, output_size=64)
     write_qualitative(rf_classifier, qual_test_dataset, path, cut_border=16, optimal_threshold=optimal_threshold)
 def write_qualitative(rf_classifier, qual_test_dataset, path, cut_border=0, optimal_threshold=0.5):
@@ -357,4 +390,4 @@ def calculate_indices(img):
     return np.stack([NDVI, FAI, FDI, SI, NDWI, NRD, NDMI, BSI])
 
 if __name__ == '__main__':
-    main()
+    main(parse_args())
