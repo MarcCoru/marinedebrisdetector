@@ -1,3 +1,5 @@
+import pandas as pd
+
 from model.segmentation_model import SegmentationModel
 from data.marinedebrisdatamodule import MarineDebrisDataModule
 import argparse
@@ -13,6 +15,7 @@ from predictor import ScenePredictor
 import torch
 from visualization import rgb, fdi, ndvi
 from model.mifdal_model import load_mifdal_model
+from torch import nn
 
 pl.seed_everything(0)
 
@@ -31,12 +34,53 @@ def parse_args():
 
     return args
 
+def parse_checkpoint_files_return_best(ckpt_files, metric="auroc", top_k=0, lower_better=False):
+    """
+    expects checkpoint files of format 'epoch=0-val_loss=0.77-auroc=0.852.ckpt'
+    with metrics separated by - and key-values by =
+    """
+    stats = []
+    for ckpt_file in ckpt_files:
+        ckpt_file = ckpt_file.replace(".ckpt", "")
+        stat = {f.split("=")[0]: float(f.split("=")[1]) for f in ckpt_file.split("-")}
+        stat["filename"] = ckpt_file
+        stats.append(stat)
+    df = pd.DataFrame(stats)
+    fname = df.sort_values(metric, ascending=lower_better).iloc[top_k].filename
+    return fname + ".ckpt"
+
+from copy import copy
+class EnsembleModel(nn.Module):
+    def __init__(self, checkpoint_files):
+        super().__init__()
+        self.models = nn.ModuleList([SegmentationModel.load_from_checkpoint(checkpoint_path=ckpt).model for ckpt in checkpoint_files])
+    def forward(self, x):
+        return torch.stack([model(x) for model in self.models]).mean(0)
+    """
+    def test_step(self, *args, **kwargs):
+        return self.basemodel.test_step(*args, **kwargs)
+
+    def test_epoch_end(self, *args, **kwargs):
+        return self.basemodel.test_epoch_end(*args, **kwargs)
+
+    def log(self, *args, **kwargs):
+        return self.basemodel.log(*args, **kwargs)
+        """
+
 def main(args):
+    ensemble = False
 
     if args.comparison == "ours":
         ckpt_files = [f for f in os.listdir(args.ckpt_folder) if f.endswith(".ckpt") and f != "last.ckpt"]
-        ckpt_file = ckpt_files[0]
+
+        ckpt_file = parse_checkpoint_files_return_best(ckpt_files)
+        print(f"using checkpoint {ckpt_file}")
         model = SegmentationModel.load_from_checkpoint(checkpoint_path=os.path.join(args.ckpt_folder, ckpt_file))
+
+        if ensemble:
+            checkpoint_files = [os.path.join(args.ckpt_folder, ckpt_file) for ckpt_file in ckpt_files]
+            model.model = EnsembleModel(checkpoint_files)
+
     elif args.comparison == "mifdal":
         model = load_mifdal_model()
     else:
@@ -97,6 +141,7 @@ class TestTimeAugmentation_wapper(torch.nn.Module):
         return y_logits
 
 def write_plp(model, dataset, path):
+    model.eval()
     os.makedirs(path, exist_ok=True)
     for image, mask, id in dataset:
         x = torch.from_numpy(image).float().unsqueeze(0)
@@ -121,7 +166,7 @@ def write_predictions(model, y_score, x, path, mask, id):
     y_pred = y_score > model.threshold.numpy()
 
     fig, ax = plt.subplots()
-    ax.imshow(y_score, vmin=0, vmax=1, cmap="Reds")
+    ax.imshow(y_score, cmap="Reds") # vmin=0, vmax=1,
     ax.axis("off")
     write_path = os.path.join(path, f"{id}_yscore.png")
     fig.savefig(write_path, bbox_inches="tight", pad_inches=0)
