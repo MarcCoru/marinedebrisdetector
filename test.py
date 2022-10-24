@@ -56,16 +56,6 @@ class EnsembleModel(nn.Module):
         self.models = nn.ModuleList([SegmentationModel.load_from_checkpoint(checkpoint_path=ckpt).model for ckpt in checkpoint_files])
     def forward(self, x):
         return torch.stack([model(x) for model in self.models]).mean(0)
-    """
-    def test_step(self, *args, **kwargs):
-        return self.basemodel.test_step(*args, **kwargs)
-
-    def test_epoch_end(self, *args, **kwargs):
-        return self.basemodel.test_epoch_end(*args, **kwargs)
-
-    def log(self, *args, **kwargs):
-        return self.basemodel.log(*args, **kwargs)
-        """
 
 def main(args):
     ensemble = False
