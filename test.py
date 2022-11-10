@@ -28,17 +28,20 @@ def parse_args():
     parser.add_argument('--weight-decay', type=float, default=1e-12)
     parser.add_argument('--workers', type=int, default=16)
     parser.add_argument('--image-size', type=int, default=128)
+    parser.add_argument('--topk', type=int, default=1)
+    parser.add_argument('--calculate_qualitative', action='store_true')
     parser.add_argument('--device', type=str, choices=["cpu", "cuda"], default="cuda")
 
     args = parser.parse_args()
 
     return args
 
-def parse_checkpoint_files_return_best(ckpt_files, metric="auroc", top_k=0, lower_better=False):
+def parse_checkpoint_files_return_best(ckpt_files, metric="auroc", top_k=1, lower_better=False):
     """
     expects checkpoint files of format 'epoch=0-val_loss=0.77-auroc=0.852.ckpt'
     with metrics separated by - and key-values by =
     """
+    top_k-=1
     stats = []
     for ckpt_file in ckpt_files:
         ckpt_file = ckpt_file.replace(".ckpt", "")
@@ -63,7 +66,7 @@ def main(args):
     if args.comparison == "ours":
         ckpt_files = [f for f in os.listdir(args.ckpt_folder) if f.endswith(".ckpt") and f != "last.ckpt"]
 
-        ckpt_file = parse_checkpoint_files_return_best(ckpt_files)
+        ckpt_file = parse_checkpoint_files_return_best(ckpt_files, top_k=args.topk)
         print(f"using checkpoint {ckpt_file}")
         model = SegmentationModel.load_from_checkpoint(checkpoint_path=os.path.join(args.ckpt_folder, ckpt_file))
 
@@ -78,39 +81,43 @@ def main(args):
 
     model = model.eval()
 
+
     marinedebris_datamodule = MarineDebrisDataModule(data_root=args.data_path,
                                         image_size=args.image_size,
                                         workers=args.workers,
                                         batch_size=args.batch_size)
 
-    logger = pl.loggers.csv_logs.CSVLogger(args.ckpt_folder, name="test_log", version=0)
+    logger = pl.loggers.csv_logs.CSVLogger(args.ckpt_folder, name="test_log", version=args.topk-1)
     trainer = pl.Trainer(logger=logger, accelerator="gpu")
     trainer.test(model, marinedebris_datamodule)
 
-    model = model.eval()
-    model = TestTimeAugmentation_wapper(model)
+    if args.calculate_qualitative:
 
-    write_qualitative(model,
-              dataset=marinedebris_datamodule.get_plp_dataset(2022, output_size=64),
-              path=os.path.join(args.ckpt_folder, "plp2022"),
-              cut_border=16)
-
-    write_qualitative(model,
-              dataset=marinedebris_datamodule.get_plp_dataset(2021, output_size=64),
-              path=os.path.join(args.ckpt_folder, "plp2021"),
-              cut_border=16)
-
-    write_qualitative(model,
-                          dataset=marinedebris_datamodule.get_qualitative_test_dataset(),
-                          path=os.path.join(args.ckpt_folder, "qualitative"))
+        model = model.eval()
+        model = TestTimeAugmentation_wapper(model)
 
 
-    predictor = ScenePredictor(device="cuda")
-    for name, path in marinedebris_datamodule.get_prediction_scene_paths():
-        predpath = os.path.join(args.ckpt_folder, "test_scenes", name + "_prediction.tif")
-        os.makedirs(os.path.dirname(predpath), exist_ok=True)
-        print(f"writing {os.path.abspath(predpath)}")
-        predictor.predict(TestTimeAugmentation_wapper(model), path, predpath)
+        write_qualitative(model,
+                  dataset=marinedebris_datamodule.get_plp_dataset(2022, output_size=64),
+                  path=os.path.join(args.ckpt_folder, "plp2022"),
+                  cut_border=16)
+
+        write_qualitative(model,
+                  dataset=marinedebris_datamodule.get_plp_dataset(2021, output_size=64),
+                  path=os.path.join(args.ckpt_folder, "plp2021"),
+                  cut_border=16)
+
+        write_qualitative(model,
+                              dataset=marinedebris_datamodule.get_qualitative_test_dataset(),
+                              path=os.path.join(args.ckpt_folder, "qualitative"))
+
+
+        predictor = ScenePredictor(device="cuda")
+        for name, path in marinedebris_datamodule.get_prediction_scene_paths():
+            predpath = os.path.join(args.ckpt_folder, "test_scenes", name + "_prediction.tif")
+            os.makedirs(os.path.dirname(predpath), exist_ok=True)
+            print(f"writing {os.path.abspath(predpath)}")
+            predictor.predict(TestTimeAugmentation_wapper(model), path, predpath)
 
 class TestTimeAugmentation_wapper(torch.nn.Module):
     def __init__(self, model):
