@@ -126,6 +126,9 @@ class FloatingSeaObjectRegionDataset(torch.utils.data.Dataset):
         # take lines to rasterize
         rasterize_lines = self.lines.loc[~self.lines["is_hnm"]].geometry
 
+        # re-add crs
+        rasterize_lines = rasterize_lines.set_crs(self.imagemeta["crs"])
+
         # combine with polygons to rasterize
         self.rasterize_geometries = pd.concat([rasterize_lines, rasterize_polygons])
 

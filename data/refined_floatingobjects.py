@@ -49,7 +49,7 @@ class RefinedFlobsRegionDataset(Dataset):
         image_bounds = self.points.buffer(self.imagesize//2).bounds
         out_of_bounds = pd.concat(
             [image_bounds.minx < left, image_bounds.miny < bottom, image_bounds.maxx > right, image_bounds.maxy > top],
-            axis=1).any(1)
+            axis=1).any(axis=1)
         self.points = self.points.loc[~out_of_bounds]
 
     def __len__(self):

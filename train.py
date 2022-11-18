@@ -18,7 +18,7 @@ def parse_args():
     parser.add_argument('--model', type=str, default="unet")
     parser.add_argument('--resume-from', type=str, default=None)
     parser.add_argument('--batch-size', type=int, default=64)
-    parser.add_argument('--weight-decay', type=float, default=1e-12)
+    parser.add_argument('--weight-decay', type=float, default=1e-6)
     parser.add_argument('--workers', type=int, default=16)
     parser.add_argument('--augmentation-intensity', type=int, default=1, help="number indicating intensity 0, 1 (noise), 2 (channel shuffle)")
     parser.add_argument('--image-size', type=int, default=128)
@@ -26,6 +26,7 @@ def parse_args():
     parser.add_argument('--hr-only', action="store_true")
     parser.add_argument('--no-checkpoint', action="store_true")
     parser.add_argument('--max-epochs', type=int, default=100)
+    parser.add_argument('--seed', type=int, default=0)
 
     # label-refinement
     parser.add_argument('--no-label-refinement', action="store_true")
@@ -40,6 +41,7 @@ def parse_args():
     return args
 
 def main(args):
+    pl.seed_everything(args.seed)
 
     model = SegmentationModel(args)
 

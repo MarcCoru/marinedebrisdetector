@@ -11,16 +11,15 @@
 
 cd /home/russwurm/marinedetector
 
-for run in 1 2 3
-do
 /home/russwurm/marinedetector/venv/bin/python3 train.py  \
   --data-path /scratch/izar/russwurm/marinedebris  \
   --model unet++  \
   --batch-size 256  \
   --project marinedebrisdetector \
-  --run-name unet++_${run}
+  --run-name unet++1
+  --seed 1
   
 /home/russwurm/marinedetector/venv/bin/python3 test.py \
   --data-path /scratch/izar/russwurm/marinedebris \
-  --ckpt-folder checkpoints/unet++_${run}
-done
+  --ckpt-folder checkpoints/marinedebrisdetector/unet++1
+
