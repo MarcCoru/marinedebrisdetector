@@ -19,7 +19,7 @@ def parse_args():
     parser.add_argument('--resume-from', type=str, default=None)
     parser.add_argument('--batch-size', type=int, default=64)
     parser.add_argument('--weight-decay', type=float, default=1e-6)
-    parser.add_argument('--workers', type=int, default=16)
+    parser.add_argument('--workers', type=int, default=4)
     parser.add_argument('--augmentation-intensity', type=int, default=1, help="number indicating intensity 0, 1 (noise), 2 (channel shuffle)")
     parser.add_argument('--image-size', type=int, default=128)
     parser.add_argument('--device', type=str, choices=["cpu", "cuda"], default="cuda")
