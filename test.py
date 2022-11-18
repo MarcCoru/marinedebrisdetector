@@ -24,7 +24,7 @@ def parse_args():
     parser.add_argument('--ckpt-folder', type=str, default="/data/marinedebris/results/ours/unet++_2022-10-21-1e6")
     parser.add_argument('--data-path', type=str, default="/data/marinedebris")
     parser.add_argument('--batch-size', type=int, default=64)
-    parser.add_argument('--workers', type=int, default=16)
+    parser.add_argument('--workers', type=int, default=4)
     parser.add_argument('--image-size', type=int, default=128)
     parser.add_argument('--topk', type=int, default=1)
     parser.add_argument('--calculate_qualitative', action='store_true')
