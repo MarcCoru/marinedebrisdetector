@@ -15,11 +15,11 @@ cd /home/russwurm/marinedetector
   --data-path /scratch/izar/russwurm/marinedebris  \
   --model unet++  \
   --batch-size 256  \
+  --resume-from /home/russwurm/marinedetector/checkpoints/marinedebrisdetector/unet++2/epoch=45-val_loss=0.64-auroc=0.984.ckpt \
   --project marinedebrisdetector \
   --run-name unet++2 \
   --seed 2
-  
+
 /home/russwurm/marinedetector/venv/bin/python3 test.py \
   --data-path /scratch/izar/russwurm/marinedebris \
   --ckpt-folder /home/russwurm/marinedetector/checkpoints/marinedebrisdetector/unet++2
-
