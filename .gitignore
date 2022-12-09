@@ -7,3 +7,4 @@ wandb
 notebooks
 *.out
 lightning_logs
+marinedebrisdetector/wandb

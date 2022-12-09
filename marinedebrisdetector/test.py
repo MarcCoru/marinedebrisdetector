@@ -13,15 +13,15 @@ from matplotlib import cm
 from predictor import ScenePredictor
 import torch
 from visualization import rgb, fdi, ndvi
-from model.mifdal_model import load_mifdal_model
 from torch import nn
+from checkpoints import CHECKPOINT_FOLDERS
 
 pl.seed_everything(0)
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--comparison', type=str, default="ours", choices=["ours", "mifdal"])
-    parser.add_argument('--ckpt-folder', type=str, default="/data/marinedebris/results/ours/unet++_2022-10-21-1e6")
+    parser.add_argument('--ckpt-folder', type=str, default="/data/marinedebris/checkpoints/unet++1")
     parser.add_argument('--data-path', type=str, default="/data/marinedebris")
     parser.add_argument('--batch-size', type=int, default=64)
     parser.add_argument('--workers', type=int, default=4)
@@ -73,6 +73,7 @@ def main(args):
             model.model = EnsembleModel(checkpoint_files)
 
     elif args.comparison == "mifdal":
+        from comparisons.mifdal_model import load_mifdal_model
         model = load_mifdal_model()
     else:
         raise ValueError()

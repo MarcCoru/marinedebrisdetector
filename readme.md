@@ -15,19 +15,33 @@ pip install -r requirements.txt
 
 more details in a dedicated [data page](doc/data.md)
 
-```
-python download_data.py
-```
-
 ### Models
 
 more details in a dedicated [models page](doc/models.md)
 
+### Train Model
+
+see full training scripts in [training scripts](training_scripts) folder.
+We use weights and biases for logging. Check the previous training runs [here](https://wandb.ai/marccoru/marinedebrisdetector)
+
 ```
-python download_models.py
+python train.py  \
+  --data-path /data/marinedebris  \
+  --model unet++  \
+  --workers 32 \
+  --batch-size 256  \
+  --project marinedebrisdetector \
+  --run-name unet++1 \
+  --seed 1
 ```
 
-### Test
+### Test Model
+
+```
+python test.py \
+  --data-path /data/marinedebris \
+  --ckpt-folder /data/marinedebris/results/
+```
 
 #### our Marine Debris Detector
 ```
