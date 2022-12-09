@@ -2,13 +2,30 @@
 
 <img src="doc/marinedebrisdetector.png" width=800px>
 
-## Setup
+## Setup 
+
+### Python Environment
 ```
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 ```
 
+### Data
+
+more details in a dedicated [data page](doc/data.md)
+
+```
+python download_data.py
+```
+
+### Models
+
+more details in a dedicated [models page](doc/models.md)
+
+```
+python download_models.py
+```
 
 ### Test
 
