@@ -1,1 +1,1 @@
-from model.model import get_model
+from marinedebrisdetector.model.model import get_model

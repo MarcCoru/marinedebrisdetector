@@ -1,10 +1,10 @@
 import numpy as np
 import torch
 from torch.optim import Adam
-from model import get_model
 import wandb
 import pytorch_lightning as pl
-from metrics import get_loss, calculate_metrics
+from marinedebrisdetector.model import get_model
+from marinedebrisdetector.metrics import get_loss, calculate_metrics
 from sklearn.metrics import precision_recall_curve
 
 class SegmentationModel(pl.LightningModule):
