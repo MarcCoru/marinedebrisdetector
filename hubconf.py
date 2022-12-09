@@ -1,4 +1,4 @@
-dependencies = ["torch", "segmentation-models-pytorch", "pytorch_lightning"]
+dependencies = ["torch", "pytorch_lightning"]
 
 from marinedebrisdetector.model.segmentation_model import SegmentationModel
 from marinedebrisdetector.checkpoints import CHECKPOINTS

@@ -5,6 +5,7 @@ class MarineDebrisDetector(nn.Module):
 
     def __init__(self):
         self.model = ""
+        torch.hub.load("marccoru/marinedebrisdetector", "unetpp")
         pass
 
     def forward(self):
