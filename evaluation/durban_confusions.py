@@ -117,15 +117,49 @@ def main(datapath = "/data/marinedebris/durban",
     print(f"writing plot to {writefile}")
     fig.savefig(writefile, bbox_inches="tight", pad_inches=0)
 
+def download(data_path):
+    import urllib.request
+    import zipfile
+
+    if not os.path.exists("PLP.zip"):
+        urllib.request.urlretrieve(data_url, "PLP.zip")
+
+    with zipfile.ZipFile("PLP.zip", 'r') as zip_ref:
+        zip_ref.extractall(data_path)
+
 if __name__ == '__main__':
-    main(datapath="/data/marinedebris/durban",
-         threshold=None,
-         checkpoint_file="/data/marinedebris/results/ours/unet++_2022-10-03_04:00:27/epoch=89-val_loss=0.52.ckpt")
 
-    main(datapath="/data/marinedebris/durban",
-         threshold=None,
-         checkpoint_file="/data/marinedebris/results/ours/unet++_2022-10-21-1e6/epoch=11-val_loss=0.45.ckpt")
+    import urllib.request
+    import zipfile
 
-    main(datapath="/data/marinedebris/durban",
+    data_url = "https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/data/durban.zip"
+    checkpoint_url = "https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/models/unet%2B%2B_durban.zip"
+    mifdalmodel = "https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/models/unet-posweight1-lr001-bs160-ep50-aug1-seed0.zip"
+
+    if not os.path.exists("durban.zip"):
+        urllib.request.urlretrieve(data_url, "durban.zip")
+
+    with zipfile.ZipFile("durban.zip", 'r') as zip_ref:
+        zip_ref.extractall(".")
+
+
+    if not os.path.exists("unet++_durban.zip"):
+        urllib.request.urlretrieve(checkpoint_url, "unet++_durban.zip")
+
+        with zipfile.ZipFile("unet++_durban.zip", 'r') as zip_ref:
+            zip_ref.extractall(".")
+
+    main(datapath="./durban",
+         threshold=None,
+         checkpoint_file="unet++_durban/epoch=89-val_loss=0.52.ckpt")
+
+    os.makedirs("mifdal", exist_ok=True)
+    if not os.path.exists("unet-posweight1-lr001-bs160-ep50-aug1-seed0.zip"):
+        urllib.request.urlretrieve(mifdalmodel, "unet-posweight1-lr001-bs160-ep50-aug1-seed0.zip")
+
+        with zipfile.ZipFile("unet-posweight1-lr001-bs160-ep50-aug1-seed0.zip", 'r') as zip_ref:
+            zip_ref.extractall(".")
+
+    main(datapath="./durban",
          threshold=0.038854,
-         checkpoint_file="/data/marinedebris/results/mifdal/unet-posweight1-lr001-bs160-ep50-aug1-seed0/unet-posweight1-lr001-bs160-ep50-aug1-seed0.pth.tar")
+         checkpoint_file="unet-posweight1-lr001-bs160-ep50-aug1-seed0/unet-posweight1-lr001-bs160-ep50-aug1-seed0.pth.tar")
