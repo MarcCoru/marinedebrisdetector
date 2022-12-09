@@ -4,8 +4,7 @@ import geopandas as gpd
 import os
 import rasterio as rio
 import pandas as pd
-import numpy as np
-from data.utils import read_tif_image
+from .utils import read_tif_image
 from rasterio import features
 
 REGIONS = [

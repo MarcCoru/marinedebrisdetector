@@ -1,15 +1,13 @@
 import torch
-from rasterio.windows import from_bounds
 import rasterio as rio
 from rasterio import features
-from shapely.geometry import LineString, Polygon
+from shapely.geometry import Polygon
 import geopandas as gpd
 import os
 import numpy as np
 import pandas as pd
-from data.utils import get_window, read_tif_image, pad, line_is_closed, \
+from .utils import get_window, read_tif_image, pad, line_is_closed, \
     split_line_gdf_into_segments, remove_lines_outside_bounds
-from data.label_refinement import refine_masks_iterative
 
 L1CBANDS = ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B9", "B10", "B11", "B12"]
 L2ABANDS = ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B9", "B11", "B12"]

@@ -7,6 +7,10 @@ def unetpp(seed):
     assert seed in [1,2,3]
     return SegmentationModel.load_from_checkpoint(CHECKPOINTS[f"unet++{seed}"])
 
+def unetpp_no_label_refinement(seed):
+    assert seed in [1,2,3]
+    return SegmentationModel.load_from_checkpoint(CHECKPOINTS[f"unet++{seed}_no_label_refinement"])
+
 def unet(seed):
     assert seed in [1, 2, 3]
     return SegmentationModel.load_from_checkpoint(CHECKPOINTS[f"unet{seed}"])

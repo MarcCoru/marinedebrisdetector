@@ -2,15 +2,11 @@ import torch
 from rasterio.windows import from_bounds
 import rasterio as rio
 from rasterio import features
-from shapely.geometry import LineString, Polygon
 import geopandas as gpd
 import os
 import numpy as np
-import pandas as pd
 from skimage.exposure import equalize_hist
 import matplotlib.pyplot as plt
-import matplotlib
-matplotlib.use("TkAgg")
 
 bands = ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B9", "B11", "B12"]
 

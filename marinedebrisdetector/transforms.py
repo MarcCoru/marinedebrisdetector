@@ -1,9 +1,6 @@
 import numpy as np
-import torch
-import random
-from data import L2ABANDS as bands
+from marinedebrisdetector.data import L2ABANDS as bands
 
-#from torchvision import transforms
 """
 def center_crop(image,mask):
     size_crop = 56

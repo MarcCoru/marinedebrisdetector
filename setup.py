@@ -12,4 +12,9 @@ setup(name='marinedebrisdetector',
       license='MIT',
       packages=find_packages(),
       install_requires=requirements,
+      entry_points={
+            'console_scripts': [
+                  'marinedebrisdetector=marinedebrisdetector:main'
+            ]
+      },
       zip_safe=False)

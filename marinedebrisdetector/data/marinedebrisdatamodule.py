@@ -1,12 +1,13 @@
 import os
 import pytorch_lightning as pl
 from torch.utils.data import DataLoader, ConcatDataset
-from transforms import get_transform
-from data.floatingobjects import FloatingSeaObjectDataset
-from data.s2ships import S2Ships
-from data.refined_floatingobjects import RefinedFlobsDataset, RefinedFlobsQualitativeDataset
-from data.plastic_litter_project import PLPDataset
-from data.marida import MaridaDataset
+from marinedebrisdetector.transforms import get_transform
+
+from .floatingobjects import FloatingSeaObjectDataset
+from .s2ships import S2Ships
+from .refined_floatingobjects import RefinedFlobsDataset, RefinedFlobsQualitativeDataset
+from .plastic_litter_project import PLPDataset
+from .marida import MaridaDataset
 
 class MarineDebrisDataModule(pl.LightningDataModule):
     def __init__(self, data_root: str = "/data/marinedebris",

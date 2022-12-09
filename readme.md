@@ -2,7 +2,30 @@
 
 <img src="doc/marinedebrisdetector.png" width=800px>
 
-## Setup 
+## Getting Started
+
+package installation
+```
+pip install git+https://github.com/marccoru/marinedebrisdetector
+```
+
+model prediction of qualitative test images.
+```
+marinedebrisdetector --plot-qualitative
+```
+
+prediction of a Sentinel-2 scene
+```
+# download example scene
+marinedebrisdetector --download-durban
+
+# predict the durban example scene
+marinedebrisdetector durban_20190424.tif
+```
+
+for more options call `marindebrisdetector --help`
+
+## Detailed Setup 
 
 ### Python Environment
 ```
@@ -11,11 +34,11 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### Data
+### Datasets
 
 more details in a dedicated [data page](doc/data.md)
 
-### Models
+### Pre-trained Models
 
 more details in a dedicated [models page](doc/models.md)
 

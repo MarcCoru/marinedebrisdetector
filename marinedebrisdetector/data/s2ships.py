@@ -1,9 +1,7 @@
-from torch.utils.data import Dataset, ConcatDataset
-from torchvision import transforms
+from torch.utils.data import Dataset
 import os
 import torch
 import numpy as np
-import pandas as pd
 
 regions = ['01_mask_rome.npy',
      '07_mask_suez6.npy',

@@ -1,0 +1,1 @@
+from .marinedebrisdetector import main

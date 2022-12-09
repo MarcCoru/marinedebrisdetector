@@ -3,12 +3,11 @@ import rasterio
 from rasterio.windows import Window
 import numpy as np
 from itertools import product
-import os
 from tqdm import tqdm
-import argparse
-from transforms import get_transform
 from scipy.ndimage.filters import gaussian_filter
-from data import L2ABANDS, L1CBANDS
+
+from marinedebrisdetector.data import L2ABANDS, L1CBANDS
+from marinedebrisdetector.transforms import get_transform
 
 class ScenePredictor():
 
@@ -76,13 +75,20 @@ class ScenePredictor():
                 with torch.no_grad():
                     x = image.unsqueeze(0)
 
-                    y_logits = self.model(x).squeeze(0)
+                    out = self.model(x)
 
-                    if self.activation == "sigmoid":
-                        y_logits = torch.sigmoid(y_logits)
+                    if isinstance(out, tuple):
+                        y_score, y_pred = self.model(x)
+                        y_score = y_score.squeeze().cpu().numpy()
+                        y_pred = y_pred.squeeze().cpu().numpy()
+                    else:
+                        y_logits = out.squeeze(0)
 
-                    y_score = y_logits.cpu().detach().numpy()[0]
-                    #y_score = y_score[:,self.offset:-self.offset, self.offset:-self.offset]
+                        if self.activation == "sigmoid":
+                            y_logits = torch.sigmoid(y_logits)
+
+                        y_score = y_logits.cpu().detach().numpy()[0]
+                        #y_score = y_score[:,self.offset:-self.offset, self.offset:-self.offset]
 
                 # unpad
                 y_score=y_score[int(np.ceil(dh)):y_score.shape[0]-int(np.floor(dh)), int(np.ceil(dw)):y_score.shape[1]-int(np.floor(dw))]

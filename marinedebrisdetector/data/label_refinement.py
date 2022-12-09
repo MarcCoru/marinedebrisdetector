@@ -2,17 +2,17 @@ import os.path
 
 import rasterio
 from skimage.segmentation import random_walker
-from visualization import fdi
+from marinedebrisdetector.visualization import fdi
 from skimage.morphology import dilation, disk
 from skimage.filters import threshold_otsu
-from data.utils import get_window, read_tif_image, line_is_closed
 from rasterio import features
 import geopandas as gpd
 from tqdm.contrib.concurrent import process_map
 from shapely.geometry import Polygon
 import numpy as np
-
 from itertools import product
+
+from .utils import get_window, read_tif_image, line_is_closed
 
 buffersizes_water = [0,1,2]
 rw_beta = [1,10]
