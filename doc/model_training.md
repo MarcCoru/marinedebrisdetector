@@ -1,9 +1,17 @@
-## Model Training
-
+# Model Training
 
 more details in a dedicated [model training page]()
 see full training scripts in [training scripts](training_scripts) folder.
 We use weights and biases for logging. Check the previous training runs [here](https://wandb.ai/marccoru/marinedebrisdetector)
+
+## Detailed Setup 
+
+### Python Environment
+```
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
 
 ```
 python train.py  \
