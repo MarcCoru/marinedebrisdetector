@@ -1,3 +1,8 @@
+marinedebrisdetector.egg-info
+build
+*.npz
+*.tif
+*durban_20190424*
 venv
 .idea
 checkpoints

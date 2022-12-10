@@ -1,6 +1,6 @@
 # Marine Debris Detector
 
-<img src="doc/marinedebrisdetector.png" width=800px>
+<img src="doc/marinedebrisdetector.png" width=600px>
 
 ## Getting Started
 
@@ -19,7 +19,7 @@ prediction of a Sentinel-2 scene
 # download example scene
 marinedebrisdetector --download-durban
 
-# predict the durban example scene
+# predict the durban example scene (takes 11 minutes on cpu Macbook Pro)
 marinedebrisdetector durban_20190424.tif
 ```
 
@@ -42,8 +42,9 @@ more details in a dedicated [data page](doc/data.md)
 
 more details in a dedicated [models page](doc/models.md)
 
-### Train Model
+### Model Training
 
+more details in a dedicated [model training page]()
 see full training scripts in [training scripts](training_scripts) folder.
 We use weights and biases for logging. Check the previous training runs [here](https://wandb.ai/marccoru/marinedebrisdetector)
 

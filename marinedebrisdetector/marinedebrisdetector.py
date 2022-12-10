@@ -125,7 +125,7 @@ def download_durban():
 def parse_args():
     parser = argparse.ArgumentParser(prog='MarineDebrisDetector')
     parser.add_argument('scene', default=None, nargs='?')
-    parser.add_argument('--model', type=str, choices=["unet++", "unet++_no_label_refinement", "unet"], default="unet++")
+    parser.add_argument('--model', type=str, choices=["unetpp", "unetpp_no_label_refinement", "unet"], default="unetpp")
     parser.add_argument('--plot-qualitative', action="store_true")
     parser.add_argument('--seed', default="1", choices=["1","2","3"])
     parser.add_argument('--device', default="cuda" if torch.cuda.is_available() else "cpu", choices=["cuda", "cpu"])
