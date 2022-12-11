@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "marinedebrisdetector"
+version = "0.0.1"
+authors = [
+  { name="Marc Russwurm", email="marc.russwurm@epfl.ch" },
+]
+description = "A detector of marine debris with Sentinel-2 scenes"
+readme = "readme.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/marccoru/marinedebrisdetector"
+
+[tool.hatch.build]
+exclude = [
+    "*.tif",
+    "training_scriots",
+    "comparisons",
+    "doc",
+    "training_scripts",
+    "durban_evaluation"
+]
