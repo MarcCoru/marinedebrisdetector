@@ -3,7 +3,7 @@ from torch import nn
 import argparse
 from tqdm import tqdm
 
-from predictor import ScenePredictor
+from marinedebrisdetector.predictor import ScenePredictor
 
 class MarineDebrisDetector(nn.Module):
 

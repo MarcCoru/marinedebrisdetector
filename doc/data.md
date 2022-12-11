@@ -34,10 +34,15 @@ we mirror the dataset [here](https://marinedebrisdetector.s3.eu-central-1.amazon
 In this work, we annotated additional scenes from the FloatingObjects dataset by accurate points.
 The dataset is available here: https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/data/refinedfloatingobjects.zip (1.3GB compressed; 12GB unzipped)
 
-## Plastic Litter Projects
+## Plastic Litter Projects 2021 and 2022
 
-We evaluated downloaded and annotated Sentinel-2 scnenes of the Plastic Litter Projects 2021 and 2022
-The data is available here: https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/data/PLP.zip (38MB compressed; 41MB unzipped)
+The targets were deployed during the Plastic Litter Projects 2021 and 2022
+> Papageorgiou, D., Topouzelis, K., Suaria, G., Aliani, S., Corradi, P., 2022.
+Sentinel-2 detection of floating marine litter targets with partial spectral
+unmixing and spectral comparison with other floating materials (plastic
+litter project 2021) Under review.
+
+We acquired and annotated the Sentinel-2 scenes here: https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/data/PLP.zip (38MB compressed; 41MB unzipped)
 
 ## S2Ships
 
