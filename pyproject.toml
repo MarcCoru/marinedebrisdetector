@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "marinedebrisdetector"
-version = "0.0.1"
+version = "0.0.2"
 authors = [
   { name="Marc Russwurm", email="marc.russwurm@epfl.ch" },
 ]
@@ -16,16 +16,16 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
+dynamic = ["dependencies"]
+
+[project.scripts]
+marinedebrisdetector = "marinedebrisdetector:main"
 
 [project.urls]
 "Homepage" = "https://github.com/marccoru/marinedebrisdetector"
 
-[tool.hatch.build]
-exclude = [
-    "*.tif",
-    "training_scriots",
-    "comparisons",
-    "doc",
-    "training_scripts",
-    "durban_evaluation"
-]
+[tool.setuptools.packages.find]
+where = ["marinedebrisdetector"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
