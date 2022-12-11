@@ -49,6 +49,9 @@ valregions = [
     "venice_20180630"
 ]
 
+def download(target_folder):
+    pass
+
 def get_region_split(seed=0, fractions=(0.6, 0.2, 0.2)):
 
     # fix random state

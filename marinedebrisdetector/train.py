@@ -27,6 +27,7 @@ def parse_args():
     parser.add_argument('--no-checkpoint', action="store_true")
     parser.add_argument('--max-epochs', type=int, default=100)
     parser.add_argument('--seed', type=int, default=0)
+    parser.add_argument('--download', action="store_true")
 
     # label-refinement
     parser.add_argument('--no-label-refinement', action="store_true")
@@ -51,7 +52,10 @@ def main(args):
                                         batch_size=args.batch_size,
                                         no_label_refinement=args.no_label_refinement,
                                         no_s2ships=args.no_s2ships,
-                                        no_marida=args.no_marida)
+                                        no_marida=args.no_marida,
+                                        download=args.download)
+
+    marinedebris_datamodule.prepare_data()
 
     if args.run_name is None:
         ts = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")

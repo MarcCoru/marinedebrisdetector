@@ -13,6 +13,16 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
+we use weights and biases for logging. Make sure, you have an account and can login per console
+```bash
+pip install wandb
+wandb login
+```
+
+### Model Training
+
+specify `--download` to download the data to the specified `--data-path`.
+
 ```
 python train.py  \
   --data-path /data/marinedebris  \
@@ -29,5 +39,5 @@ python train.py  \
 ```
 python test.py \
   --data-path /data/marinedebris \
-  --ckpt-folder /data/marinedebris/results/
+  --ckpt-folder checkpoints/unet++1
 ```

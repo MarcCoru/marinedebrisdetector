@@ -1,1 +1,1 @@
-from .marinedebrisdetector import main
+from .main_cli import main

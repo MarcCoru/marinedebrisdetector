@@ -3,7 +3,7 @@ from torch import nn
 import argparse
 from tqdm import tqdm
 
-from .predictor import ScenePredictor
+from predictor import ScenePredictor
 
 class MarineDebrisDetector(nn.Module):
 
@@ -26,15 +26,17 @@ class MarineDebrisDetector(nn.Module):
             y_score = [torch.sigmoid(model(X.to(self.device))) for model in self.model]
 
             # normalize scores to be at threshold 0.5
-            y_score = torch.stack([normalize(y_sc, model) for y_sc, model in zip(y_score, self.model)]).mean(0)
+            y_pred = torch.median(torch.stack([y_sc > model.threshold for y_sc, model in zip(y_score, self.model)]),dim=0).values
+
+            return y_score, y_pred
 
         else:
             y_score = torch.sigmoid(self.model(X.to(self.device)))
 
             # re-normalize scores to be at 0.5
-            y_score = normalize(y_score, self.model)
+            #y_score = normalize(y_score, self.model)
 
-        return y_score, y_score > 0.5
+            return y_score, y_score > self.model.threshold
 
 
 class TestTimeAugmentation_wapper(torch.nn.Module):

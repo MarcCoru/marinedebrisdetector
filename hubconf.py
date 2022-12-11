@@ -3,15 +3,15 @@ dependencies = ["torch", "pytorch_lightning", "segmentation_models_pytorch"]
 from marinedebrisdetector.model.segmentation_model import SegmentationModel
 from marinedebrisdetector.checkpoints import CHECKPOINTS
 
-def unetpp(seed):
+def unetpp(seed=1):
     assert seed in [1,2,3]
     return SegmentationModel.load_from_checkpoint(CHECKPOINTS[f"unet++{seed}"], trust_repo=True)
 
-def unetpp_no_label_refinement(seed):
+def unetppnoref(seed=1):
     assert seed in [1,2,3]
     return SegmentationModel.load_from_checkpoint(CHECKPOINTS[f"unet++{seed}_no_label_refinement"], trust_repo=True)
 
-def unet(seed):
+def unet(seed=1):
     assert seed in [1, 2, 3]
     return SegmentationModel.load_from_checkpoint(CHECKPOINTS[f"unet{seed}"], trust_repo=True)
 

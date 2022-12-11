@@ -1,8 +1,11 @@
+import os.path
+
 import numpy as np
 import rasterio as rio
 from shapely.geometry import LineString, Polygon
 import geopandas as gpd
 import shapely
+from tqdm import tqdm
 
 L1CBANDS = ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B9", "B10", "B11", "B12"]
 L2ABANDS = ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B9", "B11", "B12"]
@@ -85,3 +88,28 @@ def split_line_gdf_into_segments(lines):
     for geometry in lines.geometry:
         line_segments += segments(geometry)
     return gpd.GeoDataFrame(geometry=line_segments)
+
+def download(url, output_path=None):
+    import urllib
+    import os
+    if not os.path.exists(os.path.basename(url)):
+        filename = os.path.basename(url)
+        output_path = filename if output_path is None else os.path.join(output_path, filename)
+        print(f"downloading {url} to {output_path}")
+        with DownloadProgressBar(unit='B', unit_scale=True,
+                                 miniters=1, desc=url.split('/')[-1]) as t:
+            urllib.request.urlretrieve(url, filename=output_path, reporthook=t.update_to)
+    else:
+        print(f"{os.path.basename(url)} exists. skipping...")
+
+    return output_path
+class DownloadProgressBar(tqdm):
+    def update_to(self, b=1, bsize=1, tsize=None):
+        if tsize is not None:
+            self.total = tsize
+        self.update(b * bsize - self.n)
+
+def unzip_in_place(zipfilepath):
+    import zipfile
+    with zipfile.ZipFile(zipfilepath, 'r') as zip_ref:
+        zip_ref.extractall(os.path.dirname((zipfilepath)))

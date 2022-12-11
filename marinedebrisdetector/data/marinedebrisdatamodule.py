@@ -8,6 +8,15 @@ from .s2ships import S2Ships
 from .refined_floatingobjects import RefinedFlobsDataset, RefinedFlobsQualitativeDataset
 from .plastic_litter_project import PLPDataset
 from .marida import MaridaDataset
+from .utils import download, unzip_in_place
+
+URLs = {
+    "floatingobjects":"https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/data/floatingobjects.zip",
+    "refinedfloatingobjects":"https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/data/refinedfloatingobjects.zip",
+    "PLP":"https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/data/PLP.zip",
+    "S2SHIPS":"https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/data/S2SHIPS.zip",
+    "MARIDA":"https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/data/MARIDA.zip",
+}
 
 class MarineDebrisDataModule(pl.LightningDataModule):
     def __init__(self, data_root: str = "/data/marinedebris",
@@ -18,7 +27,8 @@ class MarineDebrisDataModule(pl.LightningDataModule):
                  no_label_refinement=False,
                  no_s2ships=False,
                  no_marida=False,
-                 hr_only=False):
+                 hr_only=False,
+                 download=False):
 
         super().__init__()
         self.data_root = data_root
@@ -28,6 +38,7 @@ class MarineDebrisDataModule(pl.LightningDataModule):
         self.image_load_size = int(self.image_size * 1.2)
         self.workers = workers
         self.hr_only = hr_only
+        self.download = download
 
         #label-refinement
         self.no_label_refinement = no_label_refinement
@@ -35,7 +46,7 @@ class MarineDebrisDataModule(pl.LightningDataModule):
         self.no_marida = no_marida
 
         self.flobs_path = os.path.join(self.data_root, "floatingobjects")
-        self.refined_flobs_path = os.path.join(self.data_root, "marinedebris_refined")
+        self.refined_flobs_path = os.path.join(self.data_root, "refinedfloatingobjects")
         self.s2ships_path = os.path.join(self.data_root, "S2SHIPS")
         self.plp_path = os.path.join(self.data_root, "PLP")
         self.maridapath = os.path.join(self.data_root, "MARIDA")
@@ -44,6 +55,35 @@ class MarineDebrisDataModule(pl.LightningDataModule):
         self.durban_scene = os.path.join(self.data_root, "durban", "durban_20190424.tif")
         self.durban_l1c_scene = os.path.join(self.data_root, "durban", "durban_20190424_l1c.tif")
         self.accra_scene = os.path.join(self.data_root, "marinedebris_refined", "accra_20181031.tif")
+
+    def prepare_data(self):
+        if not self.download:
+            if not os.path.exists(self.data_root):
+                raise ValueError(f"{self.data_root} does not exist. please check the path again or specify download=True "
+                                 f"to download the data")
+        else:
+            os.makedirs(self.data_root, exist_ok=True)
+
+            # download FloatingObjects
+            if not os.path.exists(self.flobs_path):
+                unzip_in_place(download(URLs["floatingobjects"], self.data_root))
+
+            # download refined Floating Objects
+            if not os.path.exists(self.refined_flobs_path):
+                unzip_in_place(download(URLs["refinedfloatingobjects"], self.data_root))
+
+            # download s2ships
+            if not os.path.exists(self.s2ships_path):
+                unzip_in_place(download(URLs["S2SHIPS"], self.data_root))
+
+            # download MARIDA
+            if not os.path.exists(self.maridapath):
+                unzip_in_place(download(URLs["MARIDA"], self.data_root))
+
+            # download Plastic Litter Projects
+            if not os.path.exists(self.plp_path):
+                unzip_in_place(download(URLs["PLP"], self.data_root))
+
 
     def setup(self, stage=None):
         train_transform = get_transform("train", intensity=self.augmentation_intensity, cropsize=self.image_size)
