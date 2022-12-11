@@ -1,9 +1,8 @@
 # Marine Debris Detector
 
-## Large Sale Detection of Marine Debris with Sentinel-2
+## Large Scale Detection of Marine Debris with Sentinel-2
 
-> Russwurm M, Venkatesa J. S., Tuia D. (2023; to appear) Large-scale Detection of Marine Debris in Coastal Areas with Sentinel-2
-
+> Rußwurm M, Venkatesa J. S., Tuia D. (2023; in preparation) Large-scale Detection of Marine Debris in Coastal Areas with Sentinel-2
 
 <img src="doc/marinedebrisdetector.png" width=600px>
 
@@ -62,4 +61,5 @@ torch.hub.load("marccoru/marinedebrisdetector", "unetnoref")
 
 ### Model Training
 
-more details in a dedicated [model training page](doc/model_training.md)
+We provide a [a training script](marinedebrisdetector/train.py) powered by [Pytorch Lightning](https://www.pytorchlightning.ai/) and [Weights and Biases](https://wandb.ai/site) to train new models and reproduce our results.
+More details on training commands and ablations in a dedicated page for [model training](doc/model_training.md)
