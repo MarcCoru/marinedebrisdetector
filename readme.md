@@ -1,6 +1,4 @@
-# Marine Debris Detector
-
-## Large Scale Detection of Marine Debris with Sentinel-2
+# Large Scale Detection of Marine Debris with Sentinel-2
 
 > Rußwurm M, Venkatesa J. S., Tuia D. (2023; in preparation) Large-scale Detection of Marine Debris in Coastal Areas with Sentinel-2
 
@@ -52,9 +50,12 @@ A detailed list of weights can be found on the [models page](doc/models.md)
 pretrained segmentation models can be loaded via the torch hub in python
 ```python
 import torch
+
 torch.hub.load("marccoru/marinedebrisdetector", "unetpp")
 torch.hub.load("marccoru/marinedebrisdetector", "unet")
-torch.hub.load("marccoru/marinedebrisdetector", "unetnoref")
+
+# trained without label refinement (can lead to thinner more fine-grained predictions)
+torch.hub.load("marccoru/marinedebrisdetector", "unetpp", label_refinement=False)
 ```
 
 
