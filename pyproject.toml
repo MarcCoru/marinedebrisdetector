@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "marinedebrisdetector"
-version = "0.0.2"
+version = "0.0.2.2"
 authors = [
   { name="Marc Russwurm", email="marc.russwurm@epfl.ch" },
 ]

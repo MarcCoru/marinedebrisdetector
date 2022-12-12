@@ -4,11 +4,10 @@ pytorch_lightning
 numpy
 pandas
 rasterio
-gdown
 shapely
 geopandas
 einops
-timm
+tqdm
 scikit-learn
 scikit-image
 matplotlib
