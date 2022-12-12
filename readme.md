@@ -11,14 +11,10 @@ We provide a python package for easy installation and model predictions
 
 Installation of the Python Package
 ```
-pip install git+https://github.com/marccoru/marinedebrisdetector
-```
+pip install marinedebrisdetector
 
-or 
-```
-git clone https://github.com/MarcCoru/marinedebrisdetector.git
-cd marinedebrisdetector
-pip install .
+# alternative from GitHub directly
+pip install git+https://github.com/marccoru/marinedebrisdetector
 ```
 
 You now have a `marinedebrisdetector` program to make predictions of Sentinel-2 tif images on the console.
