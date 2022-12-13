@@ -1,4 +1,4 @@
-# Large Scale Detection of Marine Debris with Sentinel-2
+# Detection of Marine Debris with Sentinel-2
 
 > Rußwurm M, Venkatesa J. S., Tuia D. (2023; in preparation) Large-scale Detection of Marine Debris in Coastal Areas with Sentinel-2
 
