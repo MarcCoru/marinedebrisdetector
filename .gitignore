@@ -13,3 +13,8 @@ notebooks
 *.out
 lightning_logs
 marinedebrisdetector/wandb
+comparisons/rf_classifier_marida_original.joblib
+comparisons/test_log/
+dist/
+rf_classifier_marida_original.joblib
+test_log/

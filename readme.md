@@ -67,10 +67,16 @@ and newly annotated a refinedFloatingObjects dataset and Sentinel-2 images of th
 More details in a dedicated [data page](doc/data.md). 
 Executing the training script ([see this "model training" page](doc/model_training.md)) with `--download` will automatically download and uncompress the required datasets (116 GB (uncompressed)).
 
-
-
-
 ### Model Training
 
 We provide a [a training script](marinedebrisdetector/train.py) powered by [Pytorch Lightning](https://www.pytorchlightning.ai/) and [Weights and Biases](https://wandb.ai/site) to train new models and reproduce our results.
 More details on training commands and ablations in a dedicated page for [model training](doc/model_training.md)
+
+### Random Forest Comparisons
+
+We compare to a random forest trained on 1) the original MARIDA dataset ([Kikaki et al., 2022](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0262247)) and 2) a random forest trained on our dataset.
+You should be able to reproduce the results in these scripts. The required data and random forest classifier is downloaded automatically.
+```
+python comparisons/test_rf_original_data.py
+python comparisons/test_rf_our_data.py
+```

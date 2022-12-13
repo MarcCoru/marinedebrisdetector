@@ -1,19 +1,26 @@
+"""
+This script downloads the random forest classifier fitted on the original MARIDA data and tests it on our
+re-downloaded marida data
+It corresponds to RF - trained on the original MARIDA dataset in the paper
+"""
+
 import sys
 sys.path.append("..")
 import os
-from os.path import dirname as up
-sys.path.append(os.path.join(up(up(os.path.abspath(__file__))), 'marinedebrisdetector', 'data'))
-
 import joblib
 import numpy as np
 from sklearn.metrics import classification_report
-import argparse 
-from marida import CLASS_MAPPING_USED
+import argparse
+from marinedebrisdetector.data.marida import CLASS_MAPPING_USED
+from marinedebrisdetector.data.utils import download
 CLASS_MAPPING_USED_INV = {v:k for k,v in CLASS_MAPPING_USED.items()}
 
 L2ABANDS = ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B9", "B11", "B12"]
 marida_bands = ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B11", "B12"]
 marida_band_idxs = np.array([L2ABANDS.index(b) for b in marida_bands])
+
+RANDOMFOREST_URL = "https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/models/rf_classifier_marida_original.joblib"
+TESTDATA_URL = "https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/data/randomforest/test.npz"
 
 from sklearn.metrics import precision_recall_fscore_support, cohen_kappa_score, jaccard_score, accuracy_score, roc_auc_score
 def calculate_metrics(targets, predictions, scores):
@@ -104,16 +111,19 @@ def predict_marida(model, test_data_path):
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--ckpt-path', type=str, default="/data/marinedebris/marida_classifier/rf_classifier_marida_original.joblib")
-    parser.add_argument('--data-path', type=str, default="/data/marinedebris/results/kikaki/randomforest/test.npz")
+    parser.add_argument('--ckpt-path', type=str, default=".")
+    parser.add_argument('--data-path', type=str, default=".")
 
     args = parser.parse_args()
 
     return args
 
 def main(args):
-    rf_classifier_path = args.ckpt_path
-    test_data_path = args.data_path
+    download(RANDOMFOREST_URL, args.ckpt_path)
+    download(TESTDATA_URL, output_path=args.data_path)
+
+    rf_classifier_path = os.path.join(args.ckpt_path,"rf_classifier_marida_original.joblib")
+    test_data_path = os.path.join(args.data_path, "test.npz")
     model = joblib.load(rf_classifier_path)
 
     print("durban")
@@ -123,7 +133,7 @@ def main(args):
     predict_refined_floatingobjects(model, "accra_20181031", test_data_path)
 
     print("marida")
-    predict_marida(model)
-    
+    predict_marida(model, test_data_path)
+
 if __name__ == '__main__':
     main(parse_args())

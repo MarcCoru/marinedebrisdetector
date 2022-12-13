@@ -1,36 +1,46 @@
-import sys
+"""
+This script downloads trainind, validation, and test data from our dataset, fits a random forest classifier,
+and reports results.
+It corresponds to RF - trained on our dataset in the paper
+"""
 
 import pandas as pd
-from data.marinedebrisdatamodule import MarineDebrisDataModule
-from visualization import rgb, fdi, ndvi
-import model.random_forest.engineering_patches as eng
 import numpy as np
-from model.random_forest.random_forest import get_random_forest
+
+from marinedebrisdetector.data.marinedebrisdatamodule import MarineDebrisDataModule
+from marinedebrisdetector.visualization import rgb, fdi, ndvi
+import marinedebrisdetector.model.random_forest.engineering_patches as eng
+from marinedebrisdetector.model.random_forest.random_forest import get_random_forest
+from marinedebrisdetector.metrics import calculate_metrics
+from marinedebrisdetector.data.utils import download
 
 from functools import partial
 from tqdm import tqdm
 import os
 
 import matplotlib
-import matplotlib.pyplot as plt
-matplotlib.use("pdf")
 
 import skimage.color
 import skimage
 from skimage import feature
 from sklearn.metrics import classification_report, precision_recall_curve
 import torch
-from metrics import calculate_metrics
 
 import matplotlib.pyplot as plt
 from matplotlib import colors
 from matplotlib import cm
 import argparse
 
+TRAINDATA_URL = "https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/data/randomforest/train.npz"
+VALDATA_URL = "https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/data/randomforest/val.npz"
+TESTDATA_URL = "https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/data/randomforest/test.npz"
+
+DEFAULT_DATA_PATH = "randomforest_data"
+
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--ckpt-folder', type=str, default="/data/marinedebris/results/kikaki/randomforest")
-    parser.add_argument('--data-path', type=str, default="/data/marinedebris")
+    parser.add_argument('--ckpt-folder', type=str, default=".") # current folder
+    parser.add_argument('--data-path', type=str, default=DEFAULT_DATA_PATH) # download data
 
     args = parser.parse_args()
 
@@ -46,10 +56,17 @@ def main(args):
     # container for metrics.csv will be updated
     stats = dict()
 
-    dm = MarineDebrisDataModule(data_path, no_label_refinement=True)
-    dm.setup("fit")
+    if data_path is not DEFAULT_DATA_PATH:
+        dm = MarineDebrisDataModule(data_path, no_label_refinement=True)
+        dm.setup("fit")
 
-    extract_and_save_features(root, dm, N_images=N_images)
+        # this function writes out train.npz, val.npz and test.npz.
+        # but it takes several hours.
+        extract_and_save_features(root, dm, N_images=N_images)
+    else:
+        download(TRAINDATA_URL, output_path=root)
+        download(VALDATA_URL, output_path=root)
+        download(TESTDATA_URL, output_path=root)
 
     rf_classifier = get_random_forest()
     # TRAIN
@@ -129,17 +146,21 @@ def main(args):
     os.makedirs(os.path.dirname(metrics_file), exist_ok=True)
     pd.DataFrame([stats]).to_csv(metrics_file)
 
-    path = root + "/qualitative"
-    qual_test_dataset = dm.get_qualitative_test_dataset()
-    write_qualitative(rf_classifier, qual_test_dataset, path, optimal_threshold=optimal_threshold)
+    if data_path is DEFAULT_DATA_PATH:
+        print(f"skipping qualitative predictions, as data_path is not specified. "
+              f"please point this to the data root folder where PLP and qualitative data are located")
+    else:
+        path = root + "/qualitative"
+        qual_test_dataset = dm.get_qualitative_test_dataset()
+        write_qualitative(rf_classifier, qual_test_dataset, path, optimal_threshold=optimal_threshold)
 
-    path = root + "/plp2021"
-    qual_test_dataset = dm.get_plp_dataset(2021, output_size=64)
-    write_qualitative(rf_classifier, qual_test_dataset, path, cut_border=16, optimal_threshold=optimal_threshold)
+        path = root + "/plp2021"
+        qual_test_dataset = dm.get_plp_dataset(2021, output_size=64)
+        write_qualitative(rf_classifier, qual_test_dataset, path, cut_border=16, optimal_threshold=optimal_threshold)
 
-    path = root + "/plp2022"
-    qual_test_dataset = dm.get_plp_dataset(2022, output_size=64)
-    write_qualitative(rf_classifier, qual_test_dataset, path, cut_border=16, optimal_threshold=optimal_threshold)
+        path = root + "/plp2022"
+        qual_test_dataset = dm.get_plp_dataset(2022, output_size=64)
+        write_qualitative(rf_classifier, qual_test_dataset, path, cut_border=16, optimal_threshold=optimal_threshold)
 def write_qualitative(rf_classifier, qual_test_dataset, path, cut_border=0, optimal_threshold=0.5):
     os.makedirs(path, exist_ok=True)
 
