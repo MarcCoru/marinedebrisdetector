@@ -11,13 +11,7 @@ import joblib
 import numpy as np
 from sklearn.metrics import classification_report
 import argparse
-from marinedebrisdetector.data.marida import CLASS_MAPPING_USED
 from marinedebrisdetector.data.utils import download
-CLASS_MAPPING_USED_INV = {v:k for k,v in CLASS_MAPPING_USED.items()}
-
-L2ABANDS = ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B9", "B11", "B12"]
-marida_bands = ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B11", "B12"]
-marida_band_idxs = np.array([L2ABANDS.index(b) for b in marida_bands])
 
 RANDOMFOREST_URL = "https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/models/rf_classifier_marida_original.joblib"
 TESTDATA_URL = "https://marinedebrisdetector.s3.eu-central-1.amazonaws.com/data/randomforest/test.npz"
