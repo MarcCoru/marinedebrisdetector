@@ -102,12 +102,14 @@ class MarineDebrisDataModule(pl.LightningDataModule):
 
         test_transform = get_transform("test", cropsize=self.image_size)
         self.train_dataset = ConcatDataset(train_datasets)
-        self.valid_dataset = ConcatDataset([
-            RefinedFlobsDataset(root=self.refined_flobs_path, fold="val", shuffle=True),
-            MaridaDataset(self.maridapath, fold="val",
+        refinedflobs_val = RefinedFlobsDataset(root=self.refined_flobs_path, fold="val", shuffle=True)
+        marida_val = MaridaDataset(self.maridapath, fold="val",
                           imagesize=self.image_size,
                           data_transform=test_transform,
                           classification=True)
+        self.valid_dataset = ConcatDataset([
+            refinedflobs_val,
+            marida_val
         ])
         maridatestdataset = MaridaDataset(self.maridapath, fold="test",
                                           imagesize = self.image_size,
@@ -116,6 +118,44 @@ class MarineDebrisDataModule(pl.LightningDataModule):
         flobstestdataset = RefinedFlobsDataset(root=self.refined_flobs_path,
                                                fold="test", shuffle=True)
         self.test_dataset = ConcatDataset([flobstestdataset, maridatestdataset])
+
+        print()
+        print("Dataset Composition total")
+        print()
+        print("train")
+        print(f"flobs_dataset (train): {len(flobs_dataset)}")
+        print(f"shipsdataset: {len(shipsdataset)}")
+        print(f"MARIDA (train): {len(maridadataset)}")
+        print()
+        print("val")
+        print(f"refinedflobs_val: {len(refinedflobs_val)}")
+        print(f"MARIDA (val): {len(marida_val)}")
+        print()
+        print("test")
+        print(f"flobstestdataset: {len(flobstestdataset)}")
+        print(f"maridatestdataset: {len(maridatestdataset)}")
+        print()
+        print()
+        print("Dataset Composition debris/non-debris")
+        print("train ")
+        non_debris = sum([ds.lines.is_hnm.sum() for ds in flobs_dataset.datasets])
+        print(f"flobs_dataset (train): {len(flobs_dataset)-non_debris}/{non_debris}")
+        print(f"shipsdataset: 0/{len(shipsdataset)}")
+        maridadataset.datasets[0].gdf.id == 7
+        non_debris = sum([(ds.gdf.id == 7).sum() for ds in maridadataset.datasets])
+        print(f"MARIDA (train): {len(maridadataset)-non_debris}/{non_debris}")
+        print()
+        print("val")
+        non_debris = sum([(ds.points["type"] == 0).sum() for ds in refinedflobs_val.datasets])
+        print(f"refinedflobs_val: {len(refinedflobs_val)-non_debris}/{non_debris}")
+        non_debris = sum([(ds.gdf.id == 7).sum() for ds in marida_val.datasets])
+        print(f"MARIDA (val): {len(marida_val)-non_debris}/{non_debris}")
+        print()
+        print("test")
+        non_debris = sum([(ds.points["type"] == 0).sum() for ds in flobstestdataset.datasets])
+        print(f"flobstestdataset: {len(flobstestdataset)-non_debris}/{non_debris}")
+        non_debris = sum([(ds.gdf.id == 7).sum() for ds in maridatestdataset.datasets])
+        print(f"maridatestdataset: {len(maridatestdataset)-non_debris}/{non_debris}")
 
     def get_qualitative_validation_dataset(self, output_size=256):
         return RefinedFlobsQualitativeDataset(root=self.refined_flobs_path, fold="val", output_size=output_size)
