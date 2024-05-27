@@ -1,8 +1,10 @@
 # Detection of Marine Debris with Sentinel-2
 
-**_NOTE:_**  The costs of hosting the data and models got too high. I had to set it private. Please contact Marc Russwurm per email if you would like to have access to the data and model weights.
+> Rußwurm, M., Venkatesa, S. J., & Tuia, D. (2023). Large-scale detection of marine debris in coastal areas with Sentinel-2. Iscience, 26(12).
 
-> Rußwurm M, Venkatesa J. S., Tuia D. (2023; in submission) Large-scale Detection of Marine Debris in Coastal Areas with Sentinel-2
+
+**_NOTE:_**  The costs of hosting the data and models got too high. I had to set it private. Please contact Marc Russwurm per email if you would like to have access to the data and model weights.
+For now, you can find the model weights in [this Google Drives folder](https://drive.google.com/drive/folders/1OBKr9G4zCP3X7fa8C7xBpJ8WNUyiajDL?usp=drive_link)
 
 <img src="doc/marinedebrisdetector.jpg" width=600px>
 
